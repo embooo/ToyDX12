@@ -7,10 +7,11 @@ workspace "ToyEngine"
 	
 	outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}" -- ex: Debug-Windows-x64
 
-	IncludePaths = {}
+	IncludePaths			  = {}
 	IncludePaths["ToyDX12"]   = "ToyDX12/include/"
+	IncludePaths["DirectX12"]    = "ToyDX12/extern/directx12"
 
-	SrcPaths = {}	  
+	SrcPaths			= {}	  
 	SrcPaths["ToyDX12"] = "ToyDX12/src/"
 
 	BuildPaths = {}	  
@@ -18,12 +19,12 @@ workspace "ToyEngine"
 	
 project "ToyDX12"
 	location "ToyDX12"
-	kind "ConsoleApp"
+	kind "WindowedApp" -- Different entry point than main on Windows
 	language "C++"
 	cppdialect "C++17"
 
-	--pchheader "PCH.h"
-	--pchsource (srcdir .. "PCH.cpp")
+	pchheader ("pch.h")
+	pchsource (SrcPaths.ToyDX12 .. "pch.cpp")
 
 	files 
 	{ 
@@ -33,7 +34,8 @@ project "ToyDX12"
 
 	includedirs
 	{
-		IncludePaths.ToyEngine
+		IncludePaths.ToyDX12,
+		IncludePaths.DirectX12
 	}
 
 	links
