@@ -1,4 +1,7 @@
 #Visual Studio
-*.vcxproj
+*.vcxproj*
 *.sln
 .vs
+
+#Project specific
+build
