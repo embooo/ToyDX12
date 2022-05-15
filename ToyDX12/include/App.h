@@ -1,5 +1,4 @@
 #pragma once
-#pragma once
 
 #include "Window.h"
 
@@ -24,7 +23,7 @@ class Win32Window;
 class Win32App : App
 {
 public:
-	static int Run(Win32Window* pWindow, HINSTANCE hInstance, int nCmdShow);
+	static int Run(HINSTANCE hInstance, int nCmdShow);
 protected:
 	static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 };

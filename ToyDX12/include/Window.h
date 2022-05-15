@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Logger.h"
+
 class Window
 {
 public:
@@ -30,15 +32,17 @@ protected:
 class Win32Window : public Window
 {
 public:
-	Win32Window(int32_t Width, int32_t Height, const WCHAR* Title);
+	Win32Window(int32_t Width, int32_t Height, const WCHAR* Title, bool bUseConsole = true);
 
 	const WCHAR* GetTitle()	const { return m_Title; }
 	static HWND GetHWND() { return s_HWND; }
 
 	void Create(HINSTANCE hInstance, WNDPROC eventCallbackFunc, int nCmdShow);
+	void CreateConsole();
 	void Update(MSG& msg);
 	void Close();
 private:
+	bool m_bUseConsole;
 	const WCHAR* m_Title;
 	static HWND s_HWND;
 };

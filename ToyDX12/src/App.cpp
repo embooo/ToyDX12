@@ -4,18 +4,21 @@
 
 // https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12HelloWorld/src/HelloWindow/Win32Application.cpp
 
-int Win32App::Run(Win32Window* pWindow, HINSTANCE hInstance, int nCmdShow)
+int Win32App::Run(HINSTANCE hInstance, int nCmdShow)
 {
-    pWindow->Create(hInstance, WindowProc, nCmdShow);
-    // Renderer OnInit function 
+    // Initialize Window
+    Win32Window window(1280, 720, L"ToyDX12");
+    window.Create(hInstance, WindowProc, nCmdShow);
 
-    // Window main loop
+    // Initialize Logger
+    Logger::Init("ToyEngine");
+
+    // Process user events
     MSG msg = {};
-    pWindow->Update(msg);
+    window.Update(msg);
 
-    pWindow->Close();
-
-    // Renderer OnDestroy function 
+    // Close
+    window.Close();
 
     return static_cast<char>(msg.wParam);
 }

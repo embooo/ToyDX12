@@ -11,7 +11,8 @@ Window::Window(int32_t Width, int32_t Height, const char* Title)
 
 //*********************************************************
 
-Win32Window::Win32Window(int32_t Width, int32_t Height, const WCHAR* Title)
+Win32Window::Win32Window(int32_t Width, int32_t Height, const WCHAR* Title, bool bUseConsole)
+    : m_bUseConsole(bUseConsole)
 {
     m_IsClosed = false;
     m_Width = Width;
@@ -51,8 +52,44 @@ void Win32Window::Create(HINSTANCE hInstance, WNDPROC eventCallbackFunc, int nCm
         nullptr,        // We aren't using menus.
         hInstance,
         this);
-    
+
+    if (m_bUseConsole)
+    {
+        CreateConsole();
+    }
+
     ShowWindow(s_HWND, nCmdShow);
+}
+
+//*********************************************************
+
+void Win32Window::CreateConsole()
+{
+    if (!AllocConsole()) {
+        return;
+    }
+
+    // Initialize in/out streams
+
+    // std::cout, std::clog, std::cerr, std::cin
+    FILE* fDummy;
+    freopen_s(&fDummy, "CONOUT$", "w", stdout);
+    freopen_s(&fDummy, "CONOUT$", "w", stderr);
+    freopen_s(&fDummy, "CONIN$", "r", stdin);
+    std::cout.clear();
+    std::clog.clear();
+    std::cerr.clear();
+    std::cin.clear();
+
+    HANDLE hConOut = CreateFile(TEXT("CONOUT$"), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE hConIn  = CreateFile(TEXT("CONIN$"), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    SetStdHandle(STD_OUTPUT_HANDLE, hConOut);
+    SetStdHandle(STD_ERROR_HANDLE, hConOut);
+    SetStdHandle(STD_INPUT_HANDLE, hConIn);
+    std::wcout.clear();
+    std::wclog.clear();
+    std::wcerr.clear();
+    std::wcin.clear();
 }
 
 //*********************************************************
@@ -64,6 +101,8 @@ void Win32Window::Update(MSG& msg)
         // Process any messages in the queue.
         if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
         {
+            LOG_INFO("Tets");
+
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
@@ -74,5 +113,9 @@ void Win32Window::Update(MSG& msg)
 
 void Win32Window::Close()
 {
+    if (m_bUseConsole)
+    {
+        FreeConsole();
+    }
     m_IsClosed = true;
 }
