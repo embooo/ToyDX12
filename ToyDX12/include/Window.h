@@ -8,7 +8,7 @@ public:
 	Window(const Window&) = delete;
 	Window& operator=(const Window&) = delete;
 
-	Window(int32_t Width, int32_t Height, std::string Title);
+	Window(int32_t Width, int32_t Height, const char* Title);
 
 	bool IsClosed() const { return m_IsClosed; }
 
@@ -30,15 +30,15 @@ protected:
 class Win32Window : public Window
 {
 public:
-	Win32Window(int32_t Width, int32_t Height, std::wstring Title);
+	Win32Window(int32_t Width, int32_t Height, const WCHAR* Title);
 
-	const WCHAR* GetTitle()	const { return m_Title.c_str(); }
+	const WCHAR* GetTitle()	const { return m_Title; }
 	static HWND GetHWND() { return s_HWND; }
 
 	void Create(HINSTANCE hInstance, WNDPROC eventCallbackFunc, int nCmdShow);
 	void Update(MSG& msg);
 	void Close();
 private:
-	std::wstring m_Title;
+	const WCHAR* m_Title;
 	static HWND s_HWND;
 };

@@ -4,14 +4,14 @@
 
 HWND Win32Window::s_HWND = nullptr;
 
-Window::Window(int32_t Width, int32_t Height, std::string Title)
-	: m_Width(Width), m_Height(Height), m_Title(Title.c_str()), m_IsClosed(false)
+Window::Window(int32_t Width, int32_t Height, const char* Title)
+	: m_Width(Width), m_Height(Height), m_Title(Title), m_IsClosed(false)
 {
 }
 
 //*********************************************************
 
-Win32Window::Win32Window(int32_t Width, int32_t Height, std::wstring Title)
+Win32Window::Win32Window(int32_t Width, int32_t Height, const WCHAR* Title)
 {
     m_IsClosed = false;
     m_Width = Width;

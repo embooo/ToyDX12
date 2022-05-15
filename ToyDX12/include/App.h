@@ -12,7 +12,7 @@ protected:
 	
 	virtual ~App() = default;
 public:
-	virtual int Run();
+	virtual int Run() = 0;
 };
 
 //*********************************************************
