@@ -7,9 +7,10 @@ workspace "ToyEngine"
 	
 	outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}" -- ex: Debug-Windows-x64
 
-	IncludePaths			  = {}
-	IncludePaths["ToyDX12"]   = "ToyDX12/include/"
-	IncludePaths["DirectX12"]    = "ToyDX12/extern/directx12"
+	IncludePaths			= {}
+	IncludePaths["ToyDX12"] = "ToyDX12/include/"
+	IncludePaths["Extern"]  = "ToyDX12/extern/"
+
 
 	SrcPaths			= {}	  
 	SrcPaths["ToyDX12"] = "ToyDX12/src/"
@@ -19,9 +20,9 @@ workspace "ToyEngine"
 	
 project "ToyDX12"
 	location "ToyDX12"
-	kind "WindowedApp" -- Different entry point than main on Windows
+	kind "WindowedApp" -- WinMain entry point
 	language "C++"
-	cppdialect "C++17"
+	cppdialect "C++20"
 
 	pchheader ("pch.h")
 	pchsource (SrcPaths.ToyDX12 .. "pch.cpp")
@@ -35,7 +36,7 @@ project "ToyDX12"
 	includedirs
 	{
 		IncludePaths.ToyDX12,
-		IncludePaths.DirectX12
+		IncludePaths.Extern
 	}
 
 	links
