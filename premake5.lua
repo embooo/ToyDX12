@@ -7,13 +7,19 @@ workspace "ToyEngine"
 	
 	outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}" -- ex: Debug-Windows-x64
 
-	IncludePaths			= {}
-	IncludePaths["ToyDX12"] = "ToyDX12/include/"
-	IncludePaths["Extern"]  = "ToyDX12/extern/"
+	FilePaths = {}
+	FilePaths["Extern"]  = "ToyDX12/extern/"
+	FilePaths["Src"]  = "ToyDX12/src/"
+	FilePaths["Core"] =  FilePaths.Src .. "core/"
+	FilePaths["App"]  =  FilePaths.Src .. "app/"
+	FilePaths["GraphicsCore"]       =  FilePaths.Src .. "graphics/core/"
+	FilePaths["GraphicsCore_DX12"]  =  FilePaths.Src .. "graphics/core/dx12/"
+	FilePaths["GraphicsRendering"]  =  FilePaths.Src .. "graphics/rendering/"
 
+	LibPaths = {}
+	LibPaths["DirectX12"] = FilePaths.Extern .. "directx12"
+	LibPaths["Spdlog"] = FilePaths.Extern .. "spdlog"
 
-	SrcPaths			= {}	  
-	SrcPaths["ToyDX12"] = "ToyDX12/src/"
 
 	BuildPaths = {}	  
 	BuildPaths["ToyDX12"] = "ToyDX12/build/"
@@ -25,18 +31,18 @@ project "ToyDX12"
 	cppdialect "C++20"
 
 	pchheader ("pch.h")
-	pchsource (SrcPaths.ToyDX12 .. "pch.cpp")
+	pchsource (FilePaths.Core .. "pch.cpp")
 
 	files 
 	{ 
-		IncludePaths.ToyDX12 .. "**.h",
-		SrcPaths.ToyDX12 .. "**.cpp"
+		FilePaths.Src .. "**.h",
+		FilePaths.Src .. "**.cpp"
 	}
 
 	includedirs
 	{
-		IncludePaths.ToyDX12,
-		IncludePaths.Extern
+		FilePaths.Src .. "**",
+		FilePaths.Extern
 	}
 
 	links

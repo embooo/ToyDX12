@@ -4,12 +4,13 @@
 
 class App
 {
-protected:
+public:
 	App() = default;
 	App(const App&) = delete;
 	App& operator=(const App&) = delete;
 	
 	virtual ~App() = default;
+
 public:
 	virtual int Run() = 0;
 };
