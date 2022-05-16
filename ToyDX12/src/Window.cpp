@@ -101,8 +101,6 @@ void Win32Window::Update(MSG& msg)
         // Process any messages in the queue.
         if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
         {
-            LOG_INFO("Tets");
-
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
