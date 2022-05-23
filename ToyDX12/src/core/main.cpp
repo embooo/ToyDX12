@@ -1,10 +1,12 @@
 #include "pch.h"
 
-#include "App.h"
+#include "DX12App.h"
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 {
-    Win32App::Run(hInstance, nCmdShow);
+    DX12App app;
+
+    app.Run(hInstance, nCmdShow);
 
     return 0;
 }

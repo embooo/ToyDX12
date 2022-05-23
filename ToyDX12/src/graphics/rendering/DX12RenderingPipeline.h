@@ -5,8 +5,6 @@
 #include "DX12CachedValues.h"
 #include "Window.h"
 
-
-
 class DX12RenderingPipeline : public IPipeline
 {
 public:

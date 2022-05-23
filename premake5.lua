@@ -42,11 +42,15 @@ project "ToyDX12"
 	includedirs
 	{
 		FilePaths.Src .. "**",
-		FilePaths.Extern
+		FilePaths.Extern,
+		LibPaths["DirectX12"]
 	}
 
 	links
 	{
+	   "d3d12.lib",
+	   "dxgi.lib",
+	   "d3dcompiler.lib"
 	}
 
 	defines
