@@ -18,6 +18,10 @@ void DX12RenderingPipeline::Init(const Win32Window& p_Window)
 	// Create the command objects (command queue/list/allocator)
 	CreateCommandObjects();
 
+		// Create descriptors for the render targets in the swapchain and for the depth-stencil
+	mp_RTVDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, s_NumSwapChainBuffers);
+	mp_DSVDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
+
 	// Create the swap chain
 	CreateSwapchain(Win32Window::GetHWND(), p_Window.GetHeight(), p_Window.GetWidth());
 	
@@ -26,9 +30,7 @@ void DX12RenderingPipeline::Init(const Win32Window& p_Window)
 	m_CachedValues.descriptorSizes.DSV = mp_DX12Device->GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	m_CachedValues.descriptorSizes.CBV_SRV_UAV = mp_DX12Device->GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	
-	// Create descriptors for the render targets in the swapchain and for the depth-stencil
-	mp_DescriptorHeapRTV = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, s_NumSwapChainBuffers);
-	mp_DescriptorHeapDSV = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
+
 }
 
 //*********************************************************
@@ -79,7 +81,7 @@ void DX12RenderingPipeline::CheckMSAASupport()
 
 void DX12RenderingPipeline::CreateSwapchain(HWND hWnd,  UINT ui_Width, UINT ui_Height, DXGI_FORMAT e_Format, UINT ui_BufferCount)
 {
-	ComPtr<IDXGISwapChain> p_swapChain;
+	ID3D12Device& device = mp_DX12Device->GetDevice();
 
 	//-----------------------------------------------------------------------
 	// Description
@@ -121,11 +123,32 @@ void DX12RenderingPipeline::CreateSwapchain(HWND hWnd,  UINT ui_Width, UINT ui_H
 	//-----------------------------------------------------------------------
 	// Creation
 	//-----------------------------------------------------------------------
-
-	mp_DX12Device->GetFactory().CreateSwapChain(mp_CommandQueue.Get(), &st_SwapChainDesc, &p_swapChain);
+	mp_DX12Device->GetFactory().CreateSwapChain(mp_CommandQueue.Get(), &st_SwapChainDesc, &mp_SwapChain);
 	m_BackBufferFormat = e_Format;
 
 	LOG_INFO("DX12Pipeline: Created swapchain.");
+
+	//-----------------------------------------------------------------------
+	// Also create render target views to each buffer in the swapchain
+	//-----------------------------------------------------------------------
+	ComPtr<ID3D12Resource> SwapChainBuffers[s_NumSwapChainBuffers];
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(mp_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+
+	for (int i = 0; i < ui_BufferCount; i++)
+	{
+		// Get ith buffer in swapchain
+		ThrowIfFailed(mp_SwapChain->GetBuffer(i, IID_PPV_ARGS(&SwapChainBuffers[i])));
+
+		// Create render target view to it
+		device.CreateRenderTargetView(SwapChainBuffers[i].Get(),
+			nullptr, rtvHeapHandle);
+
+		m_SwapChainRTViews[i] = rtvHeapHandle;
+
+		// Offset to next descriptor
+		rtvHeapHandle.Offset(1, m_CachedValues.descriptorSizes.RTV);
+	}
 }
 
 //*********************************************************
@@ -155,7 +178,7 @@ ComPtr<ID3D12DescriptorHeap> DX12RenderingPipeline::CreateDescriptorHeap(D3D12_D
 D3D12_CPU_DESCRIPTOR_HANDLE DX12RenderingPipeline::GetCurrentBackBufferView() const
 {
 	return CD3DX12_CPU_DESCRIPTOR_HANDLE(
-		mp_DescriptorHeapRTV->GetCPUDescriptorHandleForHeapStart(),// Handle to start of descriptor heap
+		mp_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),// Handle to start of descriptor heap
 		m_CurrentBackBuffer, // Index of the RTV in heap
 		m_CachedValues.descriptorSizes.RTV); // Size (in bytes) of a RTV descriptor
 }
@@ -164,7 +187,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE DX12RenderingPipeline::GetCurrentBackBufferView() co
 
 D3D12_CPU_DESCRIPTOR_HANDLE DX12RenderingPipeline::GetDepthStencilView() const
 {
-	return mp_DescriptorHeapDSV->GetCPUDescriptorHandleForHeapStart();
+	return mp_DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 }
 
 //*********************************************************

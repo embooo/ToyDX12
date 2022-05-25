@@ -34,13 +34,15 @@ protected:
 	ComPtr<ID3D12GraphicsCommandList> mp_CommandList;
 	ComPtr<ID3D12CommandAllocator> mp_CommandAllocator;
 
-	ComPtr<ID3D12DescriptorHeap> mp_DescriptorHeapRTV;
-	ComPtr<ID3D12DescriptorHeap> mp_DescriptorHeapDSV;
+	ComPtr<ID3D12DescriptorHeap> mp_RTVDescriptorHeap;
+	ComPtr<ID3D12DescriptorHeap> mp_DSVDescriptorHeap;
 
+	// SwapChain
 	DXGI_FORMAT m_BackBufferFormat;
 	int m_Msaa4XQuality;
 	static const int s_NumSwapChainBuffers = 2;
 	int m_CurrentBackBuffer = 0;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE m_SwapChainRTViews[s_NumSwapChainBuffers];
 
 	// Cached informations 
 	DX12CachedValues m_CachedValues;

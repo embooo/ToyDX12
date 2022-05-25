@@ -31,7 +31,7 @@ void DX12App::Init(HINSTANCE hInstance, int nCmdShow)
 
     // Initialize Rendering Pipeline
     mp_DX12RenderingPipeline = std::make_unique<DX12RenderingPipeline>();
-    mp_DX12RenderingPipeline->Init();
+    mp_DX12RenderingPipeline->Init(*mp_Window);
 }
 
 int DX12App::Update()
