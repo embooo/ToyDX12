@@ -3,12 +3,14 @@
 #include "IPipeline.h"
 #include "DX12Device.h"
 #include "DX12CachedValues.h"
+#include "ToyDXResource.h"
 #include "Window.h"
 
 class DX12RenderingPipeline : public IPipeline
 {
 public:
 	DX12RenderingPipeline() = default;
+	~DX12RenderingPipeline() override = default;
 
 	void Init() override;
 	void Init(const Win32Window& p_Window);
@@ -20,31 +22,47 @@ public:
 
 	void CheckMSAASupport();
 
-	ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE e_Type, UINT ui_NumDescriptors, D3D12_DESCRIPTOR_HEAP_FLAGS e_Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE, UINT ui_NodeMask = 0);
-	~DX12RenderingPipeline() override = default;
+	ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE e_Type, UINT ui_NumDescriptors, D3D12_DESCRIPTOR_HEAP_FLAGS e_Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+
+	void CreateDepthStencil(UINT ui_Width, UINT ui_Height, UINT u_mipLevels = 1, DXGI_FORMAT e_Format = DXGI_FORMAT_D32_FLOAT);
+
+	void TransitionResource(ToyDX::Resource& st_Resource, D3D12_RESOURCE_STATES e_stateBefore, D3D12_RESOURCE_STATES e_stateAfter);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GetDepthStencilView() const;
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackBufferView() const;
-protected:
-	std::unique_ptr<DX12Device> mp_DX12Device;
-	ComPtr<ID3D12Fence> mp_Fence;
-	ComPtr<IDXGISwapChain> mp_SwapChain;
 
+protected:
+	// Device
+	std::unique_ptr<DX12Device> mp_TDXDevice;
+
+	// Command objects
+	ComPtr<ID3D12Fence> mp_Fence;
 	ComPtr<ID3D12CommandQueue> mp_CommandQueue;
 	ComPtr<ID3D12GraphicsCommandList> mp_CommandList;
 	ComPtr<ID3D12CommandAllocator> mp_CommandAllocator;
 
+	// Descriptor heaps
 	ComPtr<ID3D12DescriptorHeap> mp_RTVDescriptorHeap;
 	ComPtr<ID3D12DescriptorHeap> mp_DSVDescriptorHeap;
 
 	// SwapChain
-	DXGI_FORMAT m_BackBufferFormat;
-	int m_Msaa4XQuality;
 	static const int s_NumSwapChainBuffers = 2;
-	int m_CurrentBackBuffer = 0;
+	ComPtr<IDXGISwapChain> mp_SwapChain;
 	CD3DX12_CPU_DESCRIPTOR_HANDLE m_SwapChainRTViews[s_NumSwapChainBuffers];
+
+	int  m_CurrentBackBuffer = 0;
+	bool m_bUse4xMsaa = false;
+	UINT m_Msaa4xQuality	= 0;
+	UINT m_BackBufferWidth  = 0;
+	UINT m_BackBufferHeight = 0;
+	DXGI_FORMAT m_BackBufferFormat;
+	DXGI_SAMPLE_DESC m_SampleDesc;
+
+	// Depth-Stencil
+	ToyDX::Resource mst_DepthStencil;
 
 	// Cached informations 
 	DX12CachedValues m_CachedValues;
 };
+
 
