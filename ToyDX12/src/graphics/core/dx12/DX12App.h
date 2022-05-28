@@ -7,6 +7,9 @@ class DX12App : IApp
 {
 public:
 	DX12App() = default;
+	DX12App(const DX12App&) = delete;
+	DX12App& operator=(const DX12App&) = delete;
+
 	void Run(HINSTANCE hInstance, int nCmdShow);
 	void Init(HINSTANCE hInstance, int nCmdShow);
 	void Init() override {};

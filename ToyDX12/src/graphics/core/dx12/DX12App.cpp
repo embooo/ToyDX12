@@ -6,10 +6,7 @@
 
 void DX12App::Run(HINSTANCE hInstance, int nCmdShow)
 {
-    // Initialize Window
     Init(hInstance, nCmdShow);
-
-    // Initialize rendering pipeline
 
     // Process user events
     Update();
@@ -19,17 +16,14 @@ void DX12App::Run(HINSTANCE hInstance, int nCmdShow)
 }
 void DX12App::Init(HINSTANCE hInstance, int nCmdShow)
 {
-    // Initialize window
-    {
-        mp_Window = std::make_unique<Win32Window>(1280, 720, L"ToyDX12");
-        assert(mp_Window);
-        mp_Window->Create(hInstance, ProcessEvents, nCmdShow);
-    }
+    // Initialize Window
+	mp_Window = std::make_unique<Win32Window>(1280, 720, L"ToyDX12");
+	mp_Window->Create(hInstance, ProcessEvents, nCmdShow);
 
     // Initialize Logger
     Logger::Init("ToyEngine");
 
-    // Initialize Rendering Pipeline
+    // Initialize Direct3D 
     mp_DX12RenderingPipeline = std::make_unique<DX12RenderingPipeline>();
     mp_DX12RenderingPipeline->Init(*mp_Window);
 }

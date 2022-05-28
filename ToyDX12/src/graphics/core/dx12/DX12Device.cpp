@@ -25,10 +25,6 @@ void DX12Device::Init()
 	{
 		LOG_INFO("DX12Device: Created hardware device.");
 	}
-
-	// Check MSAA quality
-	D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS st_MsaaQualityLevels;
-	// TODO
 }
 
 //*********************************************************

@@ -26,7 +26,12 @@ public:
 
 	void CreateDepthStencil(UINT ui_Width, UINT ui_Height, UINT u_mipLevels = 1, DXGI_FORMAT e_Format = DXGI_FORMAT_D32_FLOAT);
 
+	void SetViewport(UINT ui_Width, UINT ui_Height);
+	void SetScissorRectangle(UINT ui_Width, UINT ui_Height);
+
 	void TransitionResource(ToyDX::Resource& st_Resource, D3D12_RESOURCE_STATES e_stateBefore, D3D12_RESOURCE_STATES e_stateAfter);
+
+	void ResetCommandList();
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GetDepthStencilView() const;
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackBufferView() const;
@@ -48,6 +53,7 @@ protected:
 	// SwapChain
 	static const int s_NumSwapChainBuffers = 2;
 	ComPtr<IDXGISwapChain> mp_SwapChain;
+	ComPtr<ID3D12Resource> mp_SwapChainBuffers[s_NumSwapChainBuffers];
 	CD3DX12_CPU_DESCRIPTOR_HANDLE m_SwapChainRTViews[s_NumSwapChainBuffers];
 
 	int  m_CurrentBackBuffer = 0;

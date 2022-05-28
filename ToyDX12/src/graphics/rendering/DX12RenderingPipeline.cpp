@@ -30,6 +30,10 @@ void DX12RenderingPipeline::Init(const Win32Window& p_Window)
 	// Create the swap chain and depth stencil
 	CreateSwapchain(Win32Window::GetHWND(), p_Window.GetWidth(), p_Window.GetHeight());
 	CreateDepthStencil(m_BackBufferWidth, m_BackBufferHeight);
+
+	// Set viewport and scissor rectangle
+	SetViewport(m_BackBufferWidth, m_BackBufferWidth);
+	SetScissorRectangle(m_BackBufferWidth, m_BackBufferWidth);
 }
 
 //*********************************************************
@@ -52,9 +56,10 @@ void DX12RenderingPipeline::CreateCommandObjects()
 	//-----------------------------------------------------------------------
 	ThrowIfFailed(mp_TDXDevice->GetDevice().CreateCommandQueue(&st_CmdQueueDesc, IID_PPV_ARGS(&mp_CommandQueue)));
 	ThrowIfFailed(mp_TDXDevice->GetDevice().CreateCommandAllocator(st_CmdQueueDesc.Type, IID_PPV_ARGS(&mp_CommandAllocator)));
-	ThrowIfFailed(mp_TDXDevice->GetDevice().CreateCommandList(0, st_CmdQueueDesc.Type, mp_CommandAllocator.Get(), nullptr, IID_PPV_ARGS(mp_CommandList.GetAddressOf())));
 
-	ThrowIfFailed(mp_CommandList->Close());
+	// CreateCommandList1 to create a command list in a closed state
+	// https://docs.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12device4-createcommandlist1
+	mp_TDXDevice->GetDevice().CreateCommandList1(0, st_CmdQueueDesc.Type, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(mp_CommandList.GetAddressOf(), &mp_CommandList.Get()));
 
 	LOG_INFO("DX12Pipeline: Created command objects.");
 }
@@ -144,17 +149,16 @@ void DX12RenderingPipeline::CreateSwapchain(HWND hWnd,  UINT ui_Width, UINT ui_H
 	//-----------------------------------------------------------------------
 	// Also create render target views to each buffer in the swapchain
 	//-----------------------------------------------------------------------
-	ComPtr<ID3D12Resource> SwapChainBuffers[s_NumSwapChainBuffers];
 	
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(mp_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
 	for (unsigned int i = 0; i < ui_BufferCount; i++)
 	{
 		// Get ith buffer in swapchain
-		ThrowIfFailed(mp_SwapChain->GetBuffer(i, IID_PPV_ARGS(&SwapChainBuffers[i])));
+		ThrowIfFailed(mp_SwapChain->GetBuffer(i, IID_PPV_ARGS(&mp_SwapChainBuffers[i])));
 
 		// Create render target view to it
-		device.CreateRenderTargetView(SwapChainBuffers[i].Get(),
+		device.CreateRenderTargetView(mp_SwapChainBuffers[i].Get(),
 			nullptr, rtvHeapHandle);
 
 		m_SwapChainRTViews[i] = rtvHeapHandle;
@@ -240,6 +244,34 @@ void DX12RenderingPipeline::CreateDepthStencil(UINT ui_Width, UINT ui_Height, UI
 
 //*********************************************************
 
+void DX12RenderingPipeline::SetViewport(UINT ui_Width, UINT ui_Height)
+{
+	D3D12_VIEWPORT viewport;
+	viewport.TopLeftX = 0.0f;
+	viewport.TopLeftY = 0.0f;
+	viewport.Width = static_cast<float>(ui_Width);
+	viewport.Height = static_cast<float>(ui_Height);
+	viewport.MinDepth = 0.0f;
+	viewport.MaxDepth = 1.0f;
+
+	mp_CommandList->RSSetViewports(1, &viewport);
+
+	LOG_INFO("DX12Pipeline: Set Viewport.");
+}
+
+//*********************************************************
+
+void DX12RenderingPipeline::SetScissorRectangle(UINT ui_Width, UINT ui_Height)
+{
+	D3D12_RECT scissorRect;
+	scissorRect = { 0, 0, static_cast<LONG>(ui_Width), static_cast<LONG>(ui_Height) };
+	mp_CommandList->RSSetScissorRects(1, &scissorRect);
+
+	LOG_INFO("DX12Pipeline: Set Scissor Rectangle.");
+}
+
+//*********************************************************
+
 void DX12RenderingPipeline::TransitionResource(ToyDX::Resource& st_Resource, D3D12_RESOURCE_STATES e_stateBefore, D3D12_RESOURCE_STATES e_stateAfter)
 {
 	assert(e_stateBefore != e_stateAfter);
@@ -247,6 +279,10 @@ void DX12RenderingPipeline::TransitionResource(ToyDX::Resource& st_Resource, D3D
 
 	mp_CommandList->ResourceBarrier(1, &transitionBarrier);
 	st_Resource.CurrentState = e_stateAfter;
+}
+
+void DX12RenderingPipeline::ResetCommandList()
+{
 }
 
 //*********************************************************
