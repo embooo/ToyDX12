@@ -5,6 +5,7 @@
 #endif
 
 #include <windows.h>
+#include <windowsx.h>
 #include <wrl.h>
 #include <shellapi.h>
 #include <io.h>

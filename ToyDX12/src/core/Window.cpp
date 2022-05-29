@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "Window.h"
+#include "DX12App.h"
 
 HWND Win32Window::s_HWND = nullptr;
 
@@ -22,13 +23,13 @@ Win32Window::Win32Window(int32_t Width, int32_t Height, const WCHAR* Title, bool
 
 //*********************************************************
 
-void Win32Window::Create(HINSTANCE hInstance, WNDPROC eventCallbackFunc, int nCmdShow)
+void Win32Window::Init(HINSTANCE hInstance, int nCmdShow)
 {
     // Initialize window
     WNDCLASSEX windowClass = { 0 };
     windowClass.cbSize = sizeof(WNDCLASSEX);
     windowClass.style = CS_HREDRAW | CS_VREDRAW;
-    windowClass.lpfnWndProc = eventCallbackFunc;
+    windowClass.lpfnWndProc = StaticWndProc;
     windowClass.hInstance = hInstance;
     windowClass.hCursor = LoadCursor(NULL, IDC_ARROW);
     windowClass.lpszClassName = L"Win32AppClass";
@@ -94,8 +95,9 @@ void Win32Window::CreateConsole()
 
 //*********************************************************
 
-void Win32Window::Update(MSG& msg)
+int Win32Window::Update()
 {
+    MSG msg = {};
     while (msg.message != WM_QUIT)
     {
         // Process any messages in the queue.
@@ -105,15 +107,138 @@ void Win32Window::Update(MSG& msg)
             DispatchMessage(&msg);
         }
     }
+
+    return static_cast<char>(msg.wParam);
+}
+
+//*********************************************************
+// https://devblogs.microsoft.com/oldnewthing/20140127-00/?p=1963
+// https://devblogs.microsoft.com/oldnewthing/20191014-00/?p=102992
+LRESULT Win32Window::StaticWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    Win32Window* self;
+    if (uMsg == WM_NCCREATE) 
+    {
+        LPCREATESTRUCT lpcs = reinterpret_cast<LPCREATESTRUCT>(lParam);
+        self = static_cast<Win32Window*>(lpcs->lpCreateParams);
+        self->s_HWND = hwnd;
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
+    }
+    else 
+    {
+        self = reinterpret_cast<Win32Window*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+    }
+    if (self) 
+    {
+        return self->WndProc(uMsg, wParam, lParam);
+    }
+
+    return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
 
 //*********************************************************
 
-void Win32Window::Close()
+LRESULT Win32Window::WndProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    switch (uMsg)
+    {
+    case WM_CLOSE:
+        Terminate();
+        return 0;
+
+    //******************* Mouse events 
+    // https://docs.microsoft.com/en-us/windows/win32/inputdev/mouse-input-notifications
+    case WM_MOUSEMOVE:
+        OnMouseMove(lParam);
+        return 0;
+
+    case WM_LBUTTONDOWN:
+        OnMouseDown(lParam);
+        return 0;
+
+    case WM_LBUTTONUP:
+        OnMouseUp(lParam);
+        return 0;
+
+    //******************* Window events 
+    // https://docs.microsoft.com/fr-fr/windows/win32/winmsg/windowing
+    case WM_SIZING: // User is Resizing window
+        OnResize();
+        return 0;
+
+    case WM_ENTERSIZEMOVE: // User starts Resizing or moving window
+        m_AppHandle->bIsPaused = true;
+        return 0;
+
+    case WM_EXITSIZEMOVE: // User ends Resizing or moving window
+        m_AppHandle->bIsPaused = false;
+        return 0;
+
+    default:
+        // Handle any messages the switch statement didn't.
+        return DefWindowProc(s_HWND, uMsg, wParam, lParam);
+    }
+}
+
+//*********************************************************
+
+void Win32Window::OnResize()
+{
+    RECT rect = {};
+    if (GetClientRect(s_HWND, &rect))
+    {
+        m_Width = rect.right;
+        m_Height = rect.bottom;
+    }
+
+    bIsResizing = false;
+
+    LOG_INFO("Event : Window resize : {0} {1}", m_Width, m_Height);
+}
+
+void Win32Window::OnMouseDown(LPARAM lParam)
+{
+    int xPos = GET_X_LPARAM(lParam);
+    int yPos = GET_Y_LPARAM(lParam);
+
+    m_AppHandle->OnMouseDown(xPos, yPos);
+}
+
+void Win32Window::OnMouseUp(LPARAM lParam)
+{
+    int xPos = GET_X_LPARAM(lParam);
+    int yPos = GET_Y_LPARAM(lParam);
+
+    m_AppHandle->OnMouseUp(xPos, yPos);
+}
+
+void Win32Window::OnMouseMove(LPARAM lParam)
+{
+    int xPos = GET_X_LPARAM(lParam);
+    int yPos = GET_Y_LPARAM(lParam);
+
+    m_AppHandle->OnMouseMove(xPos, yPos);
+}
+
+//*********************************************************
+
+int Win32Window::Terminate()
+{
+    if (MessageBox(s_HWND, L"Really quit?", L"My application", MB_OKCANCEL) == IDOK)
+    {
+        DestroyWindow(s_HWND);
+        PostQuitMessage(0);
+    }
+    else
+    {
+        return 0;
+    }
+
     if (m_bUseConsole)
     {
         FreeConsole();
     }
+
     m_IsClosed = true;
 }

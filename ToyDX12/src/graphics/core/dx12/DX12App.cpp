@@ -2,8 +2,6 @@
 
 #include "DX12App.h"
 
-// https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12HelloWorld/src/HelloWindow/Win32Application.cpp
-
 void DX12App::Run(HINSTANCE hInstance, int nCmdShow)
 {
     Init(hInstance, nCmdShow);
@@ -14,11 +12,15 @@ void DX12App::Run(HINSTANCE hInstance, int nCmdShow)
     // Close
     Terminate();
 }
+
+//*********************************************************
+
 void DX12App::Init(HINSTANCE hInstance, int nCmdShow)
 {
     // Initialize Window
 	mp_Window = std::make_unique<Win32Window>(1280, 720, L"ToyDX12");
-	mp_Window->Create(hInstance, ProcessEvents, nCmdShow);
+	mp_Window->Init(hInstance, nCmdShow);
+    mp_Window->SetAppHandle(this);
 
     // Initialize Logger
     Logger::Init("ToyEngine");
@@ -28,29 +30,47 @@ void DX12App::Init(HINSTANCE hInstance, int nCmdShow)
     mp_DX12RenderingPipeline->Init(*mp_Window);
 }
 
+//*********************************************************
+
 int DX12App::Update()
 {
-    MSG msg = {};
-    mp_Window->Update(msg);
+    mp_Window->Update();
 
-    return static_cast<char>(msg.wParam);
+    return 0;
 }
+
+//*********************************************************
 
 void DX12App::Terminate()
 {
-    mp_Window->Close();
+    mp_Window->Terminate();
     mp_DX12RenderingPipeline->Terminate();
 }
 
-LRESULT DX12App::ProcessEvents(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    switch (message)
-    {
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        return 0;
-    }
+//*********************************************************
 
-    // Handle any messages the switch statement didn't.
-    return DefWindowProc(hWnd, message, wParam, lParam);
+void DX12App::OnResize()
+{
+   
 }
+
+void DX12App::OnMouseClick()
+{
+}
+
+void DX12App::OnMouseMove(int xPos, int yPos)
+{
+    LOG_INFO("Event : Mouse move : {0} {1}", xPos, yPos);
+}
+
+void DX12App::OnMouseUp(int xPos, int yPos)
+{
+    LOG_INFO("Event : Left Mouse Button Up : {0} {1}", xPos, yPos);
+}
+
+void DX12App::OnMouseDown(int xPos, int yPos)
+{
+    LOG_INFO("Event : Left Mouse Button Down : {0} {1}", xPos, yPos);
+}
+
+
