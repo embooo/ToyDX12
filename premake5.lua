@@ -28,62 +28,14 @@ workspace "ToyEngine"
 
 ------------------------------------------------------------------------------
 
-project "ToyDX12"
-	location "ToyDX12"
-	kind "WindowedApp" -- WinMain entry point
-	language "C++"
-	cppdialect "C++20"
-
-	pchheader ("pch.h")
-	pchsource (FilePaths.Core .. "pch.cpp")
-
-	files 
-	{ 
-		FilePaths.Src .. "**.h",
-		FilePaths.Src .. "**.cpp"
-	}
-
-	includedirs
-	{
-		FilePaths.Src .. "**",
-		FilePaths.Extern,
-		LibPaths["DirectX12"]
-	}
-
-	links
-	{
-	   "d3d12.lib",
-	   "dxgi.lib",
-	   "d3dcompiler.lib"
-	}
-
-	defines
-	{
-	}
-	
-	targetdir	("ToyDX12/build/bin/" .. outputdir )
-	objdir		("ToyDX12/build/obj/" .. outputdir )
-
-	filter "system:windows"
-		systemversion "latest"
-
-	filter "configurations:Debug"
-		runtime "Debug"
-		symbols "on"
-		buildoptions {"/Od"}
-		defines { "DEBUG_BUILD" }
-
-	filter "configurations:Release"
-		runtime "Release"
-		optimize "on"
-		defines { "RELEASE_BUILD" }
-
-------------------------------------------------------------------------------
+-- Define projects 
 
 projects = 
 {
 	"HelloApp"
 }
+
+-- Generate projects 
 
 for i, name in ipairs(projects) do
 	project(name) 
@@ -139,6 +91,7 @@ for i, name in ipairs(projects) do
 			optimize "on"
 			defines { "RELEASE_BUILD" }
 end
+
 ------------------------------------------------------------------------------
 
 -- Clean Function --
