@@ -20,14 +20,17 @@ void HelloApp::Init()
 	Update();
 }
 
-int HelloApp::Update()
+void HelloApp::Update()
 {
 	if (!DX12App::UpdateWindow())
 	{
-		return false;
+		return;
 	}
 
-	return true;
+}
+
+void HelloApp::Draw()
+{
 }
 
 void HelloApp::Terminate()

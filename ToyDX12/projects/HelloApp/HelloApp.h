@@ -9,7 +9,8 @@ public:
 	~HelloApp() override;
 
 	virtual void Init() override;
-	virtual int  Update() override;
+	virtual void Update() override;
+	virtual void Draw() override;
 	virtual void Terminate() override;
 protected:
 	const char* m_DebugName;
