@@ -2,20 +2,21 @@
 
 #include "DX12App.h"
 
-void DX12App::Run(HINSTANCE hInstance, int nCmdShow)
+DX12App::DX12App(HINSTANCE hInstance)
+    : m_hInstance(hInstance)
 {
-    Init(hInstance, nCmdShow);
-
-    // Process user events
-    Update();
-
-    // Close
-    Terminate();
 }
 
-//*********************************************************
 
-void DX12App::Init(HINSTANCE hInstance, int nCmdShow)
+bool DX12App::Initialize()
+{
+    InitWindow(m_hInstance, SW_SHOW); // Init a Win32 window
+    InitRenderingPipeline(); // Init Direct3D
+
+    return true;
+}
+
+bool DX12App::InitWindow(HINSTANCE hInstance, int nCmdShow)
 {
     // Initialize Window
 	mp_Window = std::make_unique<Win32Window>(1280, 720, L"ToyDX12");
@@ -25,25 +26,43 @@ void DX12App::Init(HINSTANCE hInstance, int nCmdShow)
     // Initialize Logger
     Logger::Init("ToyEngine");
 
-    // Initialize Direct3D 
-    mp_DX12RenderingPipeline = std::make_unique<DX12RenderingPipeline>();
-    mp_DX12RenderingPipeline->Init(*mp_Window);
+    return true;
+}
+
+bool DX12App::InitRenderingPipeline()
+{
+    if (mp_Window)
+    {
+        mp_DX12RenderingPipeline = std::make_unique<DX12RenderingPipeline>();
+        mp_DX12RenderingPipeline->Init(*mp_Window);
+
+        return true;
+    }
+
+    return false;
+}
+
+DX12App::~DX12App()
+{
+    if (mp_DX12RenderingPipeline->GetDevice() != nullptr)
+    {
+        mp_DX12RenderingPipeline->FlushCommandQueue();
+    }
 }
 
 //*********************************************************
 
-int DX12App::Update()
+bool DX12App::UpdateWindow()
 {
     mp_Window->Update();
 
-    return 0;
+    return true;
 }
 
 //*********************************************************
 
 void DX12App::Terminate()
 {
-    mp_Window->Terminate();
     mp_DX12RenderingPipeline->Terminate();
 }
 

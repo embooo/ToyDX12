@@ -17,7 +17,7 @@ public:
 	void Terminate() override;
 
 	void CreateCommandObjects();
-
+	void CreateFence();
 	void CreateSwapchain(HWND hWnd, UINT ui_Width, UINT ui_Height, DXGI_FORMAT e_Format = DXGI_FORMAT_R8G8B8A8_UNORM, UINT ui_BufferCount = s_NumSwapChainBuffers);
 
 	void CheckMSAASupport();
@@ -31,7 +31,10 @@ public:
 
 	void TransitionResource(ToyDX::Resource& st_Resource, D3D12_RESOURCE_STATES e_stateBefore, D3D12_RESOURCE_STATES e_stateAfter);
 
+	ID3D12Device* GetDevice() const { return &mp_TDXDevice->GetDevice(); }
+
 	void ResetCommandList();
+	void FlushCommandQueue();
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GetDepthStencilView() const;
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackBufferView() const;
@@ -40,8 +43,11 @@ protected:
 	// Device
 	std::unique_ptr<DX12Device> mp_TDXDevice;
 
-	// Command objects
+	// Fence
 	ComPtr<ID3D12Fence> mp_Fence;
+	UINT64 m_CurrentFenceValue;
+
+	// Command objects
 	ComPtr<ID3D12CommandQueue> mp_CommandQueue;
 	ComPtr<ID3D12GraphicsCommandList> mp_CommandList;
 	ComPtr<ID3D12CommandAllocator> mp_CommandAllocator;

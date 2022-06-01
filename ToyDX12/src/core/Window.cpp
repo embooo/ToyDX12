@@ -225,8 +225,16 @@ void Win32Window::OnMouseMove(LPARAM lParam)
 
 int Win32Window::Terminate()
 {
-    if (MessageBox(s_HWND, L"Really quit?", L"My application", MB_OKCANCEL) == IDOK)
+    if (MessageBox(s_HWND, L"Really quit?", m_Title, MB_OKCANCEL) == IDOK)
     {
+        m_AppHandle->Terminate();
+        m_IsClosed = true;
+
+        if (m_bUseConsole)
+        {
+            FreeConsole();
+        }
+
         DestroyWindow(s_HWND);
         PostQuitMessage(0);
     }
@@ -234,11 +242,4 @@ int Win32Window::Terminate()
     {
         return 0;
     }
-
-    if (m_bUseConsole)
-    {
-        FreeConsole();
-    }
-
-    m_IsClosed = true;
 }

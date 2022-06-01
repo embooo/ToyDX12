@@ -9,8 +9,8 @@ public:
 	virtual ~IApp() = 0;
 
 public:
-	virtual void Init() = 0;
-	virtual int  Update() = 0;
+	virtual void Init() = 0; // App specific code for example init meshes, cameras ...
+	virtual int  Update() = 0; // App specific code for example update animations, camera ...
 	virtual void Terminate() = 0;
 };
 

@@ -3,20 +3,26 @@
 #include "IApp.h"
 #include "DX12RenderingPipeline.h"
 
-class DX12App : IApp
+class DX12App
 {
 public:
-	DX12App() = default;
+	DX12App(HINSTANCE hInstance);
 	DX12App(const DX12App&) = delete;
 	DX12App& operator=(const DX12App&) = delete;
+	virtual ~DX12App();
 
-	virtual void Run(HINSTANCE hInstance, int nCmdShow);
-	virtual void Init(HINSTANCE hInstance, int nCmdShow);
-	virtual void Init() override {};
-	virtual int  Update() override;
-	virtual void Terminate() override;
+	// Global app functions
+	bool Initialize();
+	bool InitWindow(HINSTANCE hInstance, int nCmdShow);
+	bool UpdateWindow();
+	bool InitRenderingPipeline();
+	static DX12App* GetApp() { return s_App; }
 
-	bool bIsPaused = false;
+	// App specific functions
+	// For example : code to init/update meshes, cameras, animations ...
+	virtual void Init() = 0; 
+	virtual int  Update() = 0;
+	virtual void Terminate() = 0;
 
 	// Event handlers
 	virtual void OnResize();
@@ -24,7 +30,14 @@ public:
 	virtual void OnMouseMove(int xPos, int yPos);
 	virtual void OnMouseUp(int xPos, int yPos);
 	virtual void OnMouseDown(int xPos, int yPos);
+
+	// App state variables
+	bool bIsPaused = false;
+
 protected:
+	static DX12App* s_App;
+
+	HINSTANCE m_hInstance;
 	std::unique_ptr<Win32Window> mp_Window;
 	std::unique_ptr<DX12RenderingPipeline> mp_DX12RenderingPipeline;
 };

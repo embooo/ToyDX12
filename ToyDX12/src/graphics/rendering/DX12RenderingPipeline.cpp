@@ -59,9 +59,15 @@ void DX12RenderingPipeline::CreateCommandObjects()
 
 	// CreateCommandList1 to create a command list in a closed state
 	// https://docs.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12device4-createcommandlist1
-	mp_TDXDevice->GetDevice().CreateCommandList1(0, st_CmdQueueDesc.Type, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(mp_CommandList.GetAddressOf(), &mp_CommandList.Get()));
+	ThrowIfFailed(mp_TDXDevice->GetDevice().CreateCommandList1(0, st_CmdQueueDesc.Type, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(mp_CommandList.GetAddressOf())));
 
 	LOG_INFO("DX12Pipeline: Created command objects.");
+}
+
+void DX12RenderingPipeline::CreateFence()
+{
+	m_CurrentFenceValue = 0;
+	ThrowIfFailed(mp_TDXDevice->GetDevice().CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(mp_Fence.GetAddressOf())));
 }
 
 //*********************************************************
@@ -274,15 +280,42 @@ void DX12RenderingPipeline::SetScissorRectangle(UINT ui_Width, UINT ui_Height)
 
 void DX12RenderingPipeline::TransitionResource(ToyDX::Resource& st_Resource, D3D12_RESOURCE_STATES e_stateBefore, D3D12_RESOURCE_STATES e_stateAfter)
 {
-	assert(e_stateBefore != e_stateAfter);
-	CD3DX12_RESOURCE_BARRIER transitionBarrier = CD3DX12_RESOURCE_BARRIER::Transition(st_Resource.GetResourcePtr(), e_stateBefore, e_stateAfter);
-
-	mp_CommandList->ResourceBarrier(1, &transitionBarrier);
-	st_Resource.CurrentState = e_stateAfter;
+	if (e_stateBefore != e_stateAfter)
+	{
+		CD3DX12_RESOURCE_BARRIER transitionBarrier = CD3DX12_RESOURCE_BARRIER::Transition(st_Resource.GetResourcePtr(), e_stateBefore, e_stateAfter);
+		mp_CommandList->ResourceBarrier(1, &transitionBarrier);
+		st_Resource.CurrentState = e_stateAfter;
+	}
 }
 
 void DX12RenderingPipeline::ResetCommandList()
 {
+}
+
+// Forces the CPU to wait until the GPU has finished processing all the commands in the queue
+void DX12RenderingPipeline::FlushCommandQueue()
+{
+	// Advance the fence value to mark commands up to this fence point.
+	m_CurrentFenceValue++;
+
+	// Add an instruction to the command queue to set a new fence point.
+	// Because we are on the GPU timeline, the new fence point won’t be
+	// set until the GPU finishes processing all the commands prior to
+	// this Signal().
+	ThrowIfFailed(mp_CommandQueue->Signal(mp_Fence.Get(), m_CurrentFenceValue));
+
+	// Wait until the GPU has completed commands up to this fence point.
+	if (mp_Fence->GetCompletedValue() < m_CurrentFenceValue)
+	{
+		HANDLE eventHandle = CreateEventEx(nullptr, nullptr, false, EVENT_ALL_ACCESS);
+
+		// Fire event when GPU hits current fence.
+		ThrowIfFailed(mp_Fence->SetEventOnCompletion(m_CurrentFenceValue, eventHandle));
+
+		// Wait until the GPU hits current fence event is fired.
+		WaitForSingleObject(eventHandle, INFINITE);
+		CloseHandle(eventHandle);
+	}
 }
 
 //*********************************************************
