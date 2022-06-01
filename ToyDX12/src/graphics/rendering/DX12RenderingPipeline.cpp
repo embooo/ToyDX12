@@ -17,6 +17,7 @@ void DX12RenderingPipeline::Init(const Win32Window& p_Window)
 
 	// Create the command objects (command queue/list/allocator)
 	CreateCommandObjects();
+	CreateFence();
 
 	// Create descriptors for the render targets in the swapchain and for the depth-stencil
 	mp_RTVDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, s_NumSwapChainBuffers);

@@ -1,4 +1,5 @@
 #include "pch.h"
+
 #include "HelloApp.h"
 
 HelloApp::HelloApp(HINSTANCE hInstance, const char* sz_DebugName)
