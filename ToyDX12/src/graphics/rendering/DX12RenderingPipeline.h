@@ -31,7 +31,8 @@ public:
 
 	void TransitionResource(ToyDX::Resource& st_Resource, D3D12_RESOURCE_STATES e_stateBefore, D3D12_RESOURCE_STATES e_stateAfter);
 
-	ID3D12Device* GetDevice() const { return &mp_TDXDevice->GetDevice(); }
+	static ID3D12Device* GetDevice() { return &s_TDXDevice->GetDevice(); }
+	static ID3D12GraphicsCommandList* GetCmdList() { return s_CommandList.Get(); };
 
 	void ResetCommandList();
 	void FlushCommandQueue();
@@ -41,7 +42,7 @@ public:
 
 protected:
 	// Device
-	std::unique_ptr<DX12Device> mp_TDXDevice;
+	static std::unique_ptr<DX12Device> s_TDXDevice;
 
 	// Fence
 	ComPtr<ID3D12Fence> mp_Fence;
@@ -49,7 +50,7 @@ protected:
 
 	// Command objects
 	ComPtr<ID3D12CommandQueue> mp_CommandQueue;
-	ComPtr<ID3D12GraphicsCommandList> mp_CommandList;
+	static ComPtr<ID3D12GraphicsCommandList> s_CommandList;
 	ComPtr<ID3D12CommandAllocator> mp_CommandAllocator;
 
 	// Descriptor heaps

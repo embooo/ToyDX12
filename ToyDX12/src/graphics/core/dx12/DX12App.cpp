@@ -52,11 +52,33 @@ DX12App::~DX12App()
 
 //*********************************************************
 
-bool DX12App::Run()
+int DX12App::Run()
 {
-    mp_Window->Update();
+    MSG msg = {};
+    while (msg.message != WM_QUIT)
+    {
+        // Process any messages in the queue.
+        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+        {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+        else // Engine related updates/draws
+        {
+            if (bIsPaused)
+            {
+                Sleep(100);
+            }
+            else
+            {
+                Update();
+                Draw();
+            }
 
-    return true;
+        }
+    }
+
+    return static_cast<int>(msg.wParam);
 }
 
 //*********************************************************

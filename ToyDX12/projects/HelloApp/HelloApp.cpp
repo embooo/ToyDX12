@@ -10,27 +10,23 @@ HelloApp::HelloApp(HINSTANCE hInstance, const char* sz_DebugName)
 
 void HelloApp::Init()
 {
+	// Initialize basic functionalities : Window, Direct3D...
 	if (!DX12App::Initialize())
 	{
 		return;
 	}
 
 	LOG_INFO("{0}::Init() Hello !", m_DebugName);
-
-	Update();
 }
 
 void HelloApp::Update()
 {
-	if (!DX12App::Run())
-	{
-		return;
-	}
-
+	LOG_ERROR("Update");
 }
 
 void HelloApp::Draw()
 {
+	LOG_ERROR("Draw");
 }
 
 void HelloApp::Terminate()

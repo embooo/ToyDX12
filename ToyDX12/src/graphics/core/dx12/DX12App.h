@@ -14,7 +14,7 @@ public:
 	// Global app functions
 	bool Initialize();
 	bool InitWindow(HINSTANCE hInstance, int nCmdShow);
-	bool Run();
+	int  Run();
 	bool InitRenderingPipeline();
 	static DX12App* GetApp() { return s_App; }
 
