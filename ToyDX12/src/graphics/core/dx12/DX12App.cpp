@@ -52,7 +52,7 @@ DX12App::~DX12App()
 
 //*********************************************************
 
-bool DX12App::UpdateWindow()
+bool DX12App::Run()
 {
     mp_Window->Update();
 

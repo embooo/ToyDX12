@@ -22,7 +22,7 @@ void HelloApp::Init()
 
 void HelloApp::Update()
 {
-	if (!DX12App::UpdateWindow())
+	if (!DX12App::Run())
 	{
 		return;
 	}

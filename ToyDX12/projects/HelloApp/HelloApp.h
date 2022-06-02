@@ -2,7 +2,7 @@
 
 #include "DX12App.h"
 
-class HelloApp : DX12App
+class HelloApp : public DX12App
 {
 public:
 	HelloApp(HINSTANCE hInstance, const char* sz_DebugName = "DefaultAppName");
