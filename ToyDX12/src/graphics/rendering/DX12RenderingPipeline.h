@@ -32,30 +32,47 @@ public:
 	void TransitionResource(ToyDX::Resource& st_Resource, D3D12_RESOURCE_STATES e_stateBefore, D3D12_RESOURCE_STATES e_stateAfter);
 
 	static ID3D12Device* GetDevice() { return &s_TDXDevice->GetDevice(); }
-	static ID3D12GraphicsCommandList* GetCmdList() { return s_CommandList.Get(); };
+	static ID3D12GraphicsCommandList& GetCommandList() { return *s_CommandList.Get(); };
+	static ID3D12CommandAllocator& GetCommandAllocator() { return *s_CmdAllocator.Get(); };
+	static ID3D12CommandQueue& GetCommandQueue() { return *s_CommandQueue.Get(); };
+	D3D12_VIEWPORT& GetViewport() { return m_Viewport; };
+	D3D12_RECT& GetScissorRect() { return m_ScissorRect; };
 
-	void ResetCommandList();
-	void FlushCommandQueue();
+	static void ResetCommandList();
+	static void CloseCommandList();
+	static void FlushCommandQueue();
 
-	D3D12_CPU_DESCRIPTOR_HANDLE GetDepthStencilView() const;
-	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackBufferView() const;
+	D3D12_CPU_DESCRIPTOR_HANDLE GetDepthStencilView();
+	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackBufferView() ;
+
+	ID3D12Resource* GetCurrentBackBuffer() const;
+	int SwapChainBufferCount()   const { return s_NumSwapChainBuffers; }
+	int CurrentBackBufferIndex() const { return m_iCurrentBackBuffer; };
+	void SetCurrentBackBufferIndex(int index) { assert(index >= 0 && index < s_NumSwapChainBuffers); m_iCurrentBackBuffer = index; };
+	IDXGISwapChain* GetSwapChain() const { return mp_SwapChain.Get(); }
+
+	const D3D12_CLEAR_VALUE& GetClearValues() const { return m_ClearValues; }
 
 protected:
 	// Device
 	static std::unique_ptr<DX12Device> s_TDXDevice;
 
 	// Fence
-	ComPtr<ID3D12Fence> mp_Fence;
-	UINT64 m_CurrentFenceValue;
+	static ComPtr<ID3D12Fence> s_Fence;
+	static UINT64 s_CurrentFenceValue;
 
 	// Command objects
-	ComPtr<ID3D12CommandQueue> mp_CommandQueue;
+	static ComPtr<ID3D12CommandQueue> s_CommandQueue;
 	static ComPtr<ID3D12GraphicsCommandList> s_CommandList;
-	ComPtr<ID3D12CommandAllocator> mp_CommandAllocator;
+	static ComPtr<ID3D12CommandAllocator> s_CmdAllocator;
 
 	// Descriptor heaps
 	ComPtr<ID3D12DescriptorHeap> mp_RTVDescriptorHeap;
 	ComPtr<ID3D12DescriptorHeap> mp_DSVDescriptorHeap;
+
+	// Viewport
+	D3D12_VIEWPORT m_Viewport;
+	D3D12_RECT m_ScissorRect;
 
 	// SwapChain
 	static const int s_NumSwapChainBuffers = 2;
@@ -63,7 +80,9 @@ protected:
 	ComPtr<ID3D12Resource> mp_SwapChainBuffers[s_NumSwapChainBuffers];
 	CD3DX12_CPU_DESCRIPTOR_HANDLE m_SwapChainRTViews[s_NumSwapChainBuffers];
 
-	int  m_CurrentBackBuffer = 0;
+	D3D12_CLEAR_VALUE m_ClearValues;
+
+	int  m_iCurrentBackBuffer = 0;
 	bool m_bUse4xMsaa = false;
 	UINT m_Msaa4xQuality	= 0;
 	UINT m_BackBufferWidth  = 0;

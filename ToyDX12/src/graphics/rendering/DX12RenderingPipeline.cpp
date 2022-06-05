@@ -3,8 +3,13 @@
 #include "DX12RenderingPipeline.h"
 #include "Window.h"
 
-ComPtr<ID3D12GraphicsCommandList> DX12RenderingPipeline::s_CommandList;
-std::unique_ptr<DX12Device>		  DX12RenderingPipeline::s_TDXDevice;
+std::unique_ptr<DX12Device>			DX12RenderingPipeline::s_TDXDevice;
+UINT64								DX12RenderingPipeline::s_CurrentFenceValue;
+
+ComPtr<ID3D12Fence>					DX12RenderingPipeline::s_Fence;
+ComPtr<ID3D12GraphicsCommandList>	DX12RenderingPipeline::s_CommandList;
+ComPtr<ID3D12CommandQueue>			DX12RenderingPipeline::s_CommandQueue;
+ComPtr<ID3D12CommandAllocator>		DX12RenderingPipeline::s_CmdAllocator;
 
 void DX12RenderingPipeline::Init()
 {
@@ -19,9 +24,8 @@ void DX12RenderingPipeline::Init(const Win32Window& p_Window)
 	s_TDXDevice->Init();
 
 	// Create the command objects (command queue/list/allocator)
+	// Command list is created and by open by default, use CreateCommandList1 to create a closed command list
 	CreateCommandObjects();
-	ResetCommandList();
-
 	CreateFence();
 
 	// Create descriptors for the render targets in the swapchain and for the depth-stencil
@@ -40,15 +44,17 @@ void DX12RenderingPipeline::Init(const Win32Window& p_Window)
 	// Set viewport and scissor rectangle
 	SetViewport(m_BackBufferWidth, m_BackBufferWidth);
 	SetScissorRectangle(m_BackBufferWidth, m_BackBufferWidth);
+
+	CloseCommandList();
 }
 
 //*********************************************************
 
 void DX12RenderingPipeline::CreateCommandObjects()
 {
-	mp_CommandQueue.Reset();
+	s_CommandQueue.Reset();
 	s_CommandList.Reset();
-	mp_CommandAllocator.Reset();
+	s_CmdAllocator.Reset();
 
 	//-----------------------------------------------------------------------
 	// Description
@@ -60,20 +66,20 @@ void DX12RenderingPipeline::CreateCommandObjects()
 	//-----------------------------------------------------------------------
 	// Creation
 	//-----------------------------------------------------------------------
-	ThrowIfFailed(s_TDXDevice->GetDevice().CreateCommandQueue(&st_CmdQueueDesc, IID_PPV_ARGS(&mp_CommandQueue)));
-	ThrowIfFailed(s_TDXDevice->GetDevice().CreateCommandAllocator(st_CmdQueueDesc.Type, IID_PPV_ARGS(&mp_CommandAllocator)));
+	ThrowIfFailed(s_TDXDevice->GetDevice().CreateCommandQueue(&st_CmdQueueDesc, IID_PPV_ARGS(&s_CommandQueue)));
+	ThrowIfFailed(s_TDXDevice->GetDevice().CreateCommandAllocator(st_CmdQueueDesc.Type, IID_PPV_ARGS(&s_CmdAllocator)));
 
 	// CreateCommandList1 to create a command list in a closed state
 	// https://docs.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12device4-createcommandlist1
-	ThrowIfFailed(s_TDXDevice->GetDevice().CreateCommandList1(0, st_CmdQueueDesc.Type, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(s_CommandList.GetAddressOf())));
+	ThrowIfFailed(s_TDXDevice->GetDevice().CreateCommandList(0, st_CmdQueueDesc.Type, s_CmdAllocator.Get(), nullptr, IID_PPV_ARGS(s_CommandList.GetAddressOf())));
 
 	LOG_INFO("DX12Pipeline: Created command objects.");
 }
 
 void DX12RenderingPipeline::CreateFence()
 {
-	m_CurrentFenceValue = 0;
-	ThrowIfFailed(s_TDXDevice->GetDevice().CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(mp_Fence.GetAddressOf())));
+	s_CurrentFenceValue = 0;
+	ThrowIfFailed(s_TDXDevice->GetDevice().CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(s_Fence.GetAddressOf())));
 }
 
 //*********************************************************
@@ -153,7 +159,7 @@ void DX12RenderingPipeline::CreateSwapchain(HWND hWnd,  UINT ui_Width, UINT ui_H
 	//-----------------------------------------------------------------------
 	// Creation
 	//-----------------------------------------------------------------------
-	s_TDXDevice->GetFactory().CreateSwapChain(mp_CommandQueue.Get(), &st_SwapChainDesc, &mp_SwapChain);
+	s_TDXDevice->GetFactory().CreateSwapChain(s_CommandQueue.Get(), &st_SwapChainDesc, &mp_SwapChain);
 	m_BackBufferFormat = e_Format;
 
 	LOG_INFO("DX12Pipeline: Created swapchain.");
@@ -221,11 +227,17 @@ void DX12RenderingPipeline::CreateDepthStencil(UINT ui_Width, UINT ui_Height, UI
 	depthStencilDesc.Layout				 = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 	depthStencilDesc.Flags			     = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 	
-	// Optimized clear value for clear calls
+	// Optimized clear values for clear calls
 	D3D12_CLEAR_VALUE optClearValueDesc	   = {};
 	optClearValueDesc.Format			   = e_Format;
 	optClearValueDesc.DepthStencil.Depth   = 1.0f;
 	optClearValueDesc.DepthStencil.Stencil = 0;
+	optClearValueDesc.Color[0] = 1.0f;
+	optClearValueDesc.Color[1] = 0.0f;
+	optClearValueDesc.Color[2] = 1.0f;
+	optClearValueDesc.Color[3] = 1.0f;
+
+	m_ClearValues = optClearValueDesc;
 
 	// Heap that the resource will be commited to
 	D3D12_HEAP_PROPERTIES heapProperties = {};
@@ -258,15 +270,14 @@ void DX12RenderingPipeline::CreateDepthStencil(UINT ui_Width, UINT ui_Height, UI
 
 void DX12RenderingPipeline::SetViewport(UINT ui_Width, UINT ui_Height)
 {
-	D3D12_VIEWPORT viewport;
-	viewport.TopLeftX = 0.0f;
-	viewport.TopLeftY = 0.0f;
-	viewport.Width = static_cast<float>(ui_Width);
-	viewport.Height = static_cast<float>(ui_Height);
-	viewport.MinDepth = 0.0f;
-	viewport.MaxDepth = 1.0f;
+	m_Viewport.TopLeftX = 0.0f;
+	m_Viewport.TopLeftY = 0.0f;
+	m_Viewport.Width = static_cast<float>(ui_Width);
+	m_Viewport.Height = static_cast<float>(ui_Height);
+	m_Viewport.MinDepth = 0.0f;
+	m_Viewport.MaxDepth = 1.0f;
 
-	s_CommandList->RSSetViewports(1, &viewport);
+	s_CommandList->RSSetViewports(1, &m_Viewport);
 
 	LOG_INFO("DX12Pipeline: Set Viewport.");
 }
@@ -275,9 +286,8 @@ void DX12RenderingPipeline::SetViewport(UINT ui_Width, UINT ui_Height)
 
 void DX12RenderingPipeline::SetScissorRectangle(UINT ui_Width, UINT ui_Height)
 {
-	D3D12_RECT scissorRect;
-	scissorRect = { 0, 0, static_cast<LONG>(ui_Width), static_cast<LONG>(ui_Height) };
-	s_CommandList->RSSetScissorRects(1, &scissorRect);
+	m_ScissorRect = { 0, 0, static_cast<LONG>(ui_Width), static_cast<LONG>(ui_Height) };
+	s_CommandList->RSSetScissorRects(1, &m_ScissorRect);
 
 	LOG_INFO("DX12Pipeline: Set Scissor Rectangle.");
 }
@@ -296,31 +306,33 @@ void DX12RenderingPipeline::TransitionResource(ToyDX::Resource& st_Resource, D3D
 
 void DX12RenderingPipeline::ResetCommandList()
 {
-	if (s_CommandList.Get() && mp_CommandAllocator.Get())
-	{
-		s_CommandList->Reset(mp_CommandAllocator.Get(), nullptr);
-	}
+	ThrowIfFailed(s_CommandList->Reset(s_CmdAllocator.Get(), nullptr));
+}
+
+void DX12RenderingPipeline::CloseCommandList()
+{
+	ThrowIfFailed(s_CommandList->Close());
 }
 
 // Forces the CPU to wait until the GPU has finished processing all the commands in the queue
 void DX12RenderingPipeline::FlushCommandQueue()
 {
 	// Advance the fence value to mark commands up to this fence point.
-	m_CurrentFenceValue++;
+	s_CurrentFenceValue++;
 
 	// Add an instruction to the command queue to set a new fence point.
 	// Because we are on the GPU timeline, the new fence point won’t be
 	// set until the GPU finishes processing all the commands prior to
 	// this Signal().
-	ThrowIfFailed(mp_CommandQueue->Signal(mp_Fence.Get(), m_CurrentFenceValue));
+	ThrowIfFailed(s_CommandQueue->Signal(s_Fence.Get(), s_CurrentFenceValue));
 
 	// Wait until the GPU has completed commands up to this fence point.
-	if (mp_Fence->GetCompletedValue() < m_CurrentFenceValue)
+	if (s_Fence->GetCompletedValue() < s_CurrentFenceValue)
 	{
 		HANDLE eventHandle = CreateEventEx(nullptr, nullptr, false, EVENT_ALL_ACCESS);
 
 		// Fire event when GPU hits current fence.
-		ThrowIfFailed(mp_Fence->SetEventOnCompletion(m_CurrentFenceValue, eventHandle));
+		ThrowIfFailed(s_Fence->SetEventOnCompletion(s_CurrentFenceValue, eventHandle));
 
 		// Wait until the GPU hits current fence event is fired.
 		WaitForSingleObject(eventHandle, INFINITE);
@@ -330,17 +342,24 @@ void DX12RenderingPipeline::FlushCommandQueue()
 
 //*********************************************************
 
-D3D12_CPU_DESCRIPTOR_HANDLE DX12RenderingPipeline::GetCurrentBackBufferView() const
+D3D12_CPU_DESCRIPTOR_HANDLE DX12RenderingPipeline::GetCurrentBackBufferView()
 {
 	return CD3DX12_CPU_DESCRIPTOR_HANDLE(
 		mp_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),// Handle to start of descriptor heap
-		m_CurrentBackBuffer, // Index of the RTV in heap
+		m_iCurrentBackBuffer, // Index of the RTV in heap
 		m_CachedValues.descriptorSizes.RTV); // Size (in bytes) of a RTV descriptor
 }
 
 //*********************************************************
 
-D3D12_CPU_DESCRIPTOR_HANDLE DX12RenderingPipeline::GetDepthStencilView() const
+ID3D12Resource* DX12RenderingPipeline::GetCurrentBackBuffer() const
+{
+	return mp_SwapChainBuffers[m_iCurrentBackBuffer].Get();
+}
+
+//*********************************************************
+
+D3D12_CPU_DESCRIPTOR_HANDLE DX12RenderingPipeline::GetDepthStencilView() 
 {
 	return mp_DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 }
