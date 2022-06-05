@@ -239,16 +239,14 @@ void DX12RenderingPipeline::CreateDepthStencil(UINT ui_Width, UINT ui_Height, UI
 	depthStencilDesc.Flags			     = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 	
 	// Optimized clear values for clear calls
-	D3D12_CLEAR_VALUE optClearValueDesc	   = {};
-	optClearValueDesc.Format			   = e_Format;
-	optClearValueDesc.DepthStencil.Depth   = 1.0f;
-	optClearValueDesc.DepthStencil.Stencil = 0;
-	optClearValueDesc.Color[0] = 1.0f;
-	optClearValueDesc.Color[1] = 0.0f;
-	optClearValueDesc.Color[2] = 1.0f;
-	optClearValueDesc.Color[3] = 1.0f;
-
-	m_ClearValues = optClearValueDesc;
+	m_ClearValues = {};
+	m_ClearValues.Format			   = e_Format;
+	m_ClearValues.DepthStencil.Depth   = 1.0f;
+	m_ClearValues.DepthStencil.Stencil = 0;
+	m_ClearValues.Color[0] = 1.0f;
+	m_ClearValues.Color[1] = 0.0f;
+	m_ClearValues.Color[2] = 1.0f;
+	m_ClearValues.Color[3] = 1.0f;
 
 	// Heap that the resource will be commited to
 	D3D12_HEAP_PROPERTIES heapProperties = {};
@@ -260,7 +258,7 @@ void DX12RenderingPipeline::CreateDepthStencil(UINT ui_Width, UINT ui_Height, UI
 	//-----------------------------------------------------------------------
 	
 	// Create Depth-Stencil resource
-	ThrowIfFailed(s_TDXDevice->GetDevice().CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &depthStencilDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &optClearValueDesc, IID_PPV_ARGS(mp_DepthStencil.GetAddressOf())));
+	ThrowIfFailed(s_TDXDevice->GetDevice().CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &depthStencilDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &m_ClearValues, IID_PPV_ARGS(mp_DepthStencil.GetAddressOf())));
 	mp_DepthStencil->SetName(L"Depth-Stencil Resource");
 
 	// Create Depth-Stencil View
