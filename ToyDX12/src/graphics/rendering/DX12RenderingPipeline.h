@@ -46,6 +46,7 @@ public:
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackBufferView() ;
 
 	ID3D12Resource* GetCurrentBackBuffer() const;
+	ID3D12Resource* GetDepthStencil() const;
 	int SwapChainBufferCount()   const { return s_NumSwapChainBuffers; }
 	int CurrentBackBufferIndex() const { return m_iCurrentBackBuffer; };
 	void SetCurrentBackBufferIndex(int index) { assert(index >= 0 && index < s_NumSwapChainBuffers); m_iCurrentBackBuffer = index; };
@@ -91,6 +92,8 @@ protected:
 	DXGI_SAMPLE_DESC m_SampleDesc;
 
 	// Depth-Stencil
+	ComPtr<ID3D12Resource> mp_DepthStencil;
+
 	ToyDX::Resource mst_DepthStencil;
 
 	// Cached informations 

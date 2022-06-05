@@ -12,6 +12,7 @@ public:
 	void Init() override;
 	void Terminate() override;
 	void EnableDebugLayer();
+	void EnableShaderBasedValidation(); // GPU-based validation
 
 	UINT GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE e_Type) const;
 

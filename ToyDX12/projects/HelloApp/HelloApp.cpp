@@ -40,10 +40,12 @@ void HelloApp::Draw()
 
 	// Indicate a state transition on the resource usage.
 	ID3D12Resource* backBufferResource = mp_DX12RenderingPipeline->GetCurrentBackBuffer();
+	ID3D12Resource* depthStencilResource = mp_DX12RenderingPipeline->GetDepthStencil();
 	D3D12_CPU_DESCRIPTOR_HANDLE backBufferView = mp_DX12RenderingPipeline->GetCurrentBackBufferView();
 
 	CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBufferResource, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	rst_CommandList.ResourceBarrier(1, &barrier);
+
 
 	// Set the viewport and scissor rect. This needs to be reset
 	// whenever the command list is reset.
@@ -66,6 +68,7 @@ void HelloApp::Draw()
 	// Indicate a state transition on the resource usage.
 	barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBufferResource, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 	rst_CommandList.ResourceBarrier(1, &barrier);
+
 
 	// Stop recording commands
 	ThrowIfFailed(rst_CommandList.Close());

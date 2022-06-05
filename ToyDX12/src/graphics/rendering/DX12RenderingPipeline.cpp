@@ -67,11 +67,15 @@ void DX12RenderingPipeline::CreateCommandObjects()
 	// Creation
 	//-----------------------------------------------------------------------
 	ThrowIfFailed(s_TDXDevice->GetDevice().CreateCommandQueue(&st_CmdQueueDesc, IID_PPV_ARGS(&s_CommandQueue)));
+	s_CommandQueue->SetName(L"Command Queue");
 	ThrowIfFailed(s_TDXDevice->GetDevice().CreateCommandAllocator(st_CmdQueueDesc.Type, IID_PPV_ARGS(&s_CmdAllocator)));
+	s_CmdAllocator->SetName(L"Command Allocator");
+
 
 	// CreateCommandList1 to create a command list in a closed state
 	// https://docs.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12device4-createcommandlist1
 	ThrowIfFailed(s_TDXDevice->GetDevice().CreateCommandList(0, st_CmdQueueDesc.Type, s_CmdAllocator.Get(), nullptr, IID_PPV_ARGS(s_CommandList.GetAddressOf())));
+	s_CommandList->SetName(L"Command List");
 
 	LOG_INFO("DX12Pipeline: Created command objects.");
 }
@@ -80,6 +84,7 @@ void DX12RenderingPipeline::CreateFence()
 {
 	s_CurrentFenceValue = 0;
 	ThrowIfFailed(s_TDXDevice->GetDevice().CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(s_Fence.GetAddressOf())));
+	s_Fence->SetName(L"Fence");
 }
 
 //*********************************************************
@@ -159,8 +164,14 @@ void DX12RenderingPipeline::CreateSwapchain(HWND hWnd,  UINT ui_Width, UINT ui_H
 	//-----------------------------------------------------------------------
 	// Creation
 	//-----------------------------------------------------------------------
-	s_TDXDevice->GetFactory().CreateSwapChain(s_CommandQueue.Get(), &st_SwapChainDesc, &mp_SwapChain);
+	ThrowIfFailed(s_TDXDevice->GetFactory().CreateSwapChain(s_CommandQueue.Get(), &st_SwapChainDesc, &mp_SwapChain));
 	m_BackBufferFormat = e_Format;
+	for (unsigned int i = 0; i < ui_BufferCount; i++)
+	{
+		ThrowIfFailed(mp_SwapChain->GetBuffer(i, IID_PPV_ARGS(&mp_SwapChainBuffers[i])));
+
+		mp_SwapChainBuffers[i]->SetName(L"SwapChain Buffer " + i);
+	}
 
 	LOG_INFO("DX12Pipeline: Created swapchain.");
 
@@ -176,8 +187,7 @@ void DX12RenderingPipeline::CreateSwapchain(HWND hWnd,  UINT ui_Width, UINT ui_H
 		ThrowIfFailed(mp_SwapChain->GetBuffer(i, IID_PPV_ARGS(&mp_SwapChainBuffers[i])));
 
 		// Create render target view to it
-		device.CreateRenderTargetView(mp_SwapChainBuffers[i].Get(),
-			nullptr, rtvHeapHandle);
+		device.CreateRenderTargetView(mp_SwapChainBuffers[i].Get(), nullptr, rtvHeapHandle);
 
 		m_SwapChainRTViews[i] = rtvHeapHandle;
 
@@ -204,6 +214,7 @@ ComPtr<ID3D12DescriptorHeap> DX12RenderingPipeline::CreateDescriptorHeap(D3D12_D
 	//-----------------------------------------------------------------------
 	ComPtr<ID3D12DescriptorHeap> pDescriptorHeap;
 	ThrowIfFailed(s_TDXDevice->GetDevice().CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(pDescriptorHeap.GetAddressOf())));
+	pDescriptorHeap->SetName(L"Descriptor Heap");
 
 	return pDescriptorHeap;
 }
@@ -249,21 +260,13 @@ void DX12RenderingPipeline::CreateDepthStencil(UINT ui_Width, UINT ui_Height, UI
 	//-----------------------------------------------------------------------
 	
 	// Create Depth-Stencil resource
-	ThrowIfFailed(s_TDXDevice->GetDevice().CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &depthStencilDesc, D3D12_RESOURCE_STATE_COMMON, &optClearValueDesc, IID_PPV_ARGS(mst_DepthStencil.pResource.GetAddressOf())));
-
-	// Save current state
-	mst_DepthStencil.CurrentState = D3D12_RESOURCE_STATE_COMMON;
+	ThrowIfFailed(s_TDXDevice->GetDevice().CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &depthStencilDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &optClearValueDesc, IID_PPV_ARGS(mp_DepthStencil.GetAddressOf())));
+	mp_DepthStencil->SetName(L"Depth-Stencil Resource");
 
 	// Create Depth-Stencil View
-
 	CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHeapHandle(mp_DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
-	s_TDXDevice->GetDevice().CreateDepthStencilView(mst_DepthStencil.GetResourcePtr(), nullptr, dsvHeapHandle);
-
-	mst_DepthStencil.CPUDescriptor = dsvHeapHandle;
-
-	// Transition the resource to be used as a Depth buffer
-	TransitionResource(mst_DepthStencil, mst_DepthStencil.CurrentState, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+	s_TDXDevice->GetDevice().CreateDepthStencilView(mp_DepthStencil.Get(), nullptr, dsvHeapHandle);
 }
 
 //*********************************************************
@@ -355,6 +358,11 @@ D3D12_CPU_DESCRIPTOR_HANDLE DX12RenderingPipeline::GetCurrentBackBufferView()
 ID3D12Resource* DX12RenderingPipeline::GetCurrentBackBuffer() const
 {
 	return mp_SwapChainBuffers[m_iCurrentBackBuffer].Get();
+}
+
+ID3D12Resource* DX12RenderingPipeline::GetDepthStencil() const
+{
+	return mst_DepthStencil.pResource.Get();
 }
 
 //*********************************************************

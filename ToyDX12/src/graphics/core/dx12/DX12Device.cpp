@@ -7,6 +7,7 @@ void DX12Device::Init()
 	// Optionally enable debug layer 
 #if defined(DEBUG_BUILD)
 	EnableDebugLayer();
+	EnableShaderBasedValidation();
 #endif
 
 	// Try to create physical device
@@ -43,6 +44,20 @@ void DX12Device::EnableDebugLayer()
 	
 	LOG_INFO("DX12Device: Enabled debug layer.");
 }
+
+//*********************************************************
+
+void DX12Device::EnableShaderBasedValidation()
+{
+	// https://docs.microsoft.com/en-us/windows/win32/direct3d12/using-d3d12-debug-layer-gpu-based-validation
+	ComPtr<ID3D12Debug> spDebugController0;
+	ComPtr<ID3D12Debug1> spDebugController1;
+	ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&spDebugController0)));
+	ThrowIfFailed(spDebugController0->QueryInterface(IID_PPV_ARGS(&spDebugController1)));
+	spDebugController1->SetEnableGPUBasedValidation(true);
+}
+
+//*********************************************************
 
 UINT DX12Device::GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE e_Type) const
 {
