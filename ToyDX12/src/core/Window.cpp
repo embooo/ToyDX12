@@ -54,6 +54,9 @@ void Win32Window::Init(HINSTANCE hInstance, int nCmdShow)
         hInstance,
         this);
 
+    assert(windowRect.bottom > 0);
+    m_fAspectRatio = (float)windowRect.right / windowRect.bottom;
+
     if (m_bUseConsole)
     {
         CreateConsole();
@@ -117,6 +120,7 @@ LRESULT Win32Window::StaticWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM l
     {
         self = reinterpret_cast<Win32Window*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
     }
+
     if (self) 
     {
         return self->WndProc(uMsg, wParam, lParam);
@@ -129,7 +133,6 @@ LRESULT Win32Window::StaticWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM l
 
 LRESULT Win32Window::WndProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-
     switch (uMsg)
     {
     case WM_CLOSE:
@@ -139,7 +142,7 @@ LRESULT Win32Window::WndProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     //******************* Mouse events 
     // https://docs.microsoft.com/en-us/windows/win32/inputdev/mouse-input-notifications
     case WM_MOUSEMOVE:
-        OnMouseMove(lParam);
+        OnMouseMove(wParam, lParam);
         return 0;
 
     case WM_LBUTTONDOWN:
@@ -153,7 +156,7 @@ LRESULT Win32Window::WndProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     //******************* Window events 
     // https://docs.microsoft.com/fr-fr/windows/win32/winmsg/windowing
     case WM_SIZING: // User is Resizing window
-        OnResize();
+        OnResize(lParam);
         return 0;
 
     case WM_ENTERSIZEMOVE: // User starts Resizing or moving window
@@ -164,6 +167,15 @@ LRESULT Win32Window::WndProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         m_AppHandle->bIsPaused = false;
         return 0;
 
+    case WM_GETMINMAXINFO:
+    {
+        MINMAXINFO* mmi = (MINMAXINFO*)lParam;
+        mmi->ptMinTrackSize.x = 200;
+        mmi->ptMinTrackSize.y = 200;
+
+        return 0;
+    }
+
     default:
         // Handle any messages the switch statement didn't.
         return DefWindowProc(s_HWND, uMsg, wParam, lParam);
@@ -172,18 +184,21 @@ LRESULT Win32Window::WndProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 //*********************************************************
 
-void Win32Window::OnResize()
+void Win32Window::OnResize(LPARAM lParam)
 {
     RECT rect = {};
+    
     if (GetClientRect(s_HWND, &rect))
     {
-        m_Width = rect.right;
+        m_Width  = rect.right;
         m_Height = rect.bottom;
+
+        m_fAspectRatio = (float)m_Width / m_Height;
     }
 
     bIsResizing = false;
 
-    LOG_INFO("Event : Window resize : {0} {1}", m_Width, m_Height);
+    LOG_INFO("Event : Window resize (AR={0}): {1} {2}", m_fAspectRatio, m_Width, m_Height);
 }
 
 void Win32Window::OnMouseDown(LPARAM lParam)
@@ -202,12 +217,12 @@ void Win32Window::OnMouseUp(LPARAM lParam)
     m_AppHandle->OnMouseUp(xPos, yPos);
 }
 
-void Win32Window::OnMouseMove(LPARAM lParam)
+void Win32Window::OnMouseMove(WPARAM buttonState, LPARAM lParam)
 {
     int xPos = GET_X_LPARAM(lParam);
     int yPos = GET_Y_LPARAM(lParam);
 
-    m_AppHandle->OnMouseMove(xPos, yPos);
+    m_AppHandle->OnMouseMove(buttonState, xPos, yPos);
 }
 
 //*********************************************************

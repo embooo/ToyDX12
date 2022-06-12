@@ -47,15 +47,18 @@ public:
 	int Update();
 	int Terminate();
 
+	float GetAspectRatio() { return m_fAspectRatio; }
+
 	// Event handlers
-	void OnResize();
+	void OnResize(LPARAM lParam);
 	void OnMouseUp(LPARAM lParam);
 	void OnMouseDown(LPARAM lParam);
-	void OnMouseMove(LPARAM lParam);
+	void OnMouseMove(WPARAM buttonState, LPARAM lParam);
 
 	bool bIsResizing = false;
 
 private:
+	float m_fAspectRatio;
 	bool m_bUseConsole;
 	const WCHAR* m_Title;
 	static HWND s_HWND;
