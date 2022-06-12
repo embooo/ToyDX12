@@ -54,7 +54,11 @@ public:
 
 	const D3D12_CLEAR_VALUE& GetClearValues() const { return m_ClearValues; }
 
-protected:
+	// Creates a default buffer in the GPU default heap by using an upload buffer as an intermediate CPU accessible buffer
+	static ComPtr<ID3D12Resource> CreateDefaultBuffer(const void* pData, UINT64 ui64_SizeInBytes, Microsoft::WRL::ComPtr<ID3D12Resource>& p_UploadBuffer);
+	static D3D12_VERTEX_BUFFER_VIEW CreateVertexBufferView(Microsoft::WRL::ComPtr<ID3D12Resource>& p_VertexBufferGPU, UINT ui_SizeInBytes, UINT ui_StrideInBytes);
+	static D3D12_INDEX_BUFFER_VIEW CreateIndexBufferView(Microsoft::WRL::ComPtr<ID3D12Resource>& p_IndexBufferGPU, UINT ui_SizeInBytes, DXGI_FORMAT e_Format = DXGI_FORMAT_R16_UINT);
+
 	// Device
 	static std::unique_ptr<DX12Device> s_TDXDevice;
 

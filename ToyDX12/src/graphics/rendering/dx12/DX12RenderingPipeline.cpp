@@ -372,6 +372,77 @@ D3D12_CPU_DESCRIPTOR_HANDLE DX12RenderingPipeline::GetDepthStencilView()
 
 //*********************************************************
 
+ComPtr<ID3D12Resource> DX12RenderingPipeline::CreateDefaultBuffer(const void* pData, UINT64 ui64_SizeInBytes, Microsoft::WRL::ComPtr<ID3D12Resource>& p_UploadBuffer)
+{
+	// To create a buffer in the Default Heap that can only be accessed by the GPU
+	// We first need to store the data into an Upload Buffer in the Upload Heap accessible by the CPU
+	// and then upload the data to the Default Buffer
+
+	//*********************************************************
+	//	Default Buffer Resource creation
+	//*********************************************************
+
+	ComPtr<ID3D12Resource> p_DefaultBuffer;
+	CD3DX12_HEAP_PROPERTIES defaultHeapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+	CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(ui64_SizeInBytes);
+	ThrowIfFailed(DX12RenderingPipeline::GetDevice()->CreateCommittedResource(
+		&defaultHeapProperty, D3D12_HEAP_FLAG_NONE, &bufferDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(p_DefaultBuffer.GetAddressOf())));
+
+	//*********************************************************
+	//	Upload Buffer Resource creation 
+	//*********************************************************
+	CD3DX12_HEAP_PROPERTIES uploadHeapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	
+	ThrowIfFailed(DX12RenderingPipeline::GetDevice()->CreateCommittedResource(
+		&uploadHeapProperty, D3D12_HEAP_FLAG_NONE, &bufferDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(p_UploadBuffer.GetAddressOf())));
+
+	//**************************************************************
+	//	Description of the data to be copied into the default buffer 
+	//**************************************************************
+
+	D3D12_SUBRESOURCE_DATA subResourceDataDesc = {};
+	subResourceDataDesc.pData = pData;
+	subResourceDataDesc.RowPitch = ui64_SizeInBytes;
+	subResourceDataDesc.RowPitch = ui64_SizeInBytes;
+
+	//	Schedule the copy to the default buffer, by using the upload buffer as an intermediate buffer
+	UpdateSubresources<1>(&DX12RenderingPipeline::GetCommandList(),
+		p_DefaultBuffer.Get(), p_UploadBuffer.Get(),
+		0, 0, 1, &subResourceDataDesc);
+
+	// The upload buffer has to be kept alive at least until the UpdateSubresources command is executed in the command queue
+	// After that, the Upload buffer can be safely released
+	return p_DefaultBuffer;
+}
+
+//*********************************************************
+
+D3D12_VERTEX_BUFFER_VIEW DX12RenderingPipeline::CreateVertexBufferView(Microsoft::WRL::ComPtr<ID3D12Resource>& p_VertexBufferGPU, UINT ui_SizeInBytes, UINT ui_StrideInBytes)
+{
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewDesc = {};
+	vertexBufferViewDesc.BufferLocation = p_VertexBufferGPU.Get()->GetGPUVirtualAddress();
+	vertexBufferViewDesc.SizeInBytes    = ui_SizeInBytes;	// Size in bytes of the vertex buffer
+	vertexBufferViewDesc.StrideInBytes  = ui_StrideInBytes;	// Size in bytes of a single vertex
+
+	return vertexBufferViewDesc;
+}
+
+//*********************************************************
+
+D3D12_INDEX_BUFFER_VIEW DX12RenderingPipeline::CreateIndexBufferView(Microsoft::WRL::ComPtr<ID3D12Resource>& p_IndexBufferGPU, UINT ui_SizeInBytes, DXGI_FORMAT e_Format)
+{
+	D3D12_INDEX_BUFFER_VIEW indexBufferViewDesc = {};
+	indexBufferViewDesc.BufferLocation = p_IndexBufferGPU.Get()->GetGPUVirtualAddress();
+	indexBufferViewDesc.SizeInBytes = ui_SizeInBytes;	// Size in bytes of the index buffer
+	indexBufferViewDesc.Format = e_Format;	// DXGI_FORMAT_R16_UINT or DXGI_FORMAT_R32_UINT
+
+	return indexBufferViewDesc;
+}
+
+//*********************************************************
+
 void DX12RenderingPipeline::Terminate()
 {
 }
