@@ -5,7 +5,7 @@ workspace "ToyEngine"
 	architecture "x64"
 	startproject "ToyDX12"
 	
-	outputdir = "%{cfg.buildcfg}-%{prj.name}%-{cfg.system}-%{cfg.architecture}" -- ex: Debug-Windows-x64
+	outputdir = "%{cfg.buildcfg}-%{prj.name}-%{cfg.system}-%{cfg.architecture}" -- ex: Debug-Windows-x64
 
 	FilePaths = {}
 	FilePaths["Extern"]  = "ToyDX12/extern/"
@@ -21,6 +21,7 @@ workspace "ToyEngine"
 	LibPaths = {}
 	LibPaths["DirectX12"] = FilePaths.Extern .. "directx12"
 	LibPaths["Spdlog"] = FilePaths.Extern .. "spdlog"
+	LibPaths["DirectXMath"] = FilePaths.Extern .. "directxmath"
 
 
 	BuildPaths = {}	  
@@ -61,13 +62,15 @@ for i, name in ipairs(projects) do
 			FilePaths.Extern,
 			LibPaths["DirectX12"],
 			FilePaths.Projects .. name .. "/**",
+			LibPaths["DirectXMath"]
 		}
 
 		links
 		{
 		"d3d12.lib",
 		"dxgi.lib",
-		"d3dcompiler.lib"
+		"d3dcompiler.lib",
+		"dxguid.lib"
 		}
 
 		defines
