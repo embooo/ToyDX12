@@ -28,12 +28,13 @@ public:
 	// Event handlers
 	virtual void OnResize();
 	virtual void OnMouseClick();
-	virtual void OnMouseMove(int xPos, int yPos);
+	virtual void OnMouseMove(WPARAM buttonState, int xPos, int yPos);
 	virtual void OnMouseUp(int xPos, int yPos);
 	virtual void OnMouseDown(int xPos, int yPos);
 
 	// App state variables
 	bool bIsPaused = false;
+	float GetWindowAspectRatio() { return mp_Window->GetAspectRatio(); }
 
 protected:
 	static DX12App* s_App;

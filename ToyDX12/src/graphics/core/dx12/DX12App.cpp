@@ -99,19 +99,19 @@ void DX12App::OnMouseClick()
 {
 }
 
-void DX12App::OnMouseMove(int xPos, int yPos)
+void DX12App::OnMouseMove(WPARAM buttonState, int xPos, int yPos)
 {
-    LOG_INFO("Event : Mouse move : {0} {1}", xPos, yPos);
+    
 }
 
 void DX12App::OnMouseUp(int xPos, int yPos)
 {
-    LOG_INFO("Event : Left Mouse Button Up : {0} {1}", xPos, yPos);
+    
 }
 
 void DX12App::OnMouseDown(int xPos, int yPos)
 {
-    LOG_INFO("Event : Left Mouse Button Down : {0} {1}", xPos, yPos);
+    
 }
 
 
