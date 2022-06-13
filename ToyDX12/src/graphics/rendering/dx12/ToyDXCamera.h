@@ -23,8 +23,8 @@ namespace ToyDX
 		void Init();
 		void Rotate(float fMousePosX, float fMousePosY);
 		const Frustum& GetFrustum() { return m_stFrustum; }
-		Camera& SetControlParameters(ControlParams st_ControlParams = {}, float fRadius = 5.0);
-		Camera& SetFrustum(Frustum st_Frustum = {});
+		Camera& SetControlParameters(const ControlParams& st_ControlParams = {}, float fRadius = 5.0);
+		Camera& SetFrustum(const Frustum& st_Frustum = {});
 		Camera& BuildViewMatrix();
 
 		DirectX::XMMATRIX& GetViewMatrix() { return m_ViewMatrix; }

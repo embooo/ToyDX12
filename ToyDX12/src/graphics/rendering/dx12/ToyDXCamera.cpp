@@ -25,7 +25,7 @@ void ToyDX::Camera::Rotate(float fMousePosX, float fMousePosY)
 	m_fLastMousePosY = fMousePosY;
 }
 
-ToyDX::Camera& ToyDX::Camera::SetControlParameters(ControlParams st_ControlParams, float fRadius)
+ToyDX::Camera& ToyDX::Camera::SetControlParameters(const ControlParams& st_ControlParams, float fRadius)
 {
 	m_stControlParams = st_ControlParams;
 	m_fRadius = fRadius;
@@ -48,7 +48,7 @@ ToyDX::Camera& ToyDX::Camera::BuildViewMatrix()
 	return *this;
 }
 
-ToyDX::Camera& ToyDX::Camera::SetFrustum(Frustum st_Frustum)
+ToyDX::Camera& ToyDX::Camera::SetFrustum(const Frustum& st_Frustum)
 {
 	m_stFrustum = st_Frustum;
 	return *this;
