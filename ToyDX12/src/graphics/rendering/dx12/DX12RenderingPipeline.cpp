@@ -360,7 +360,7 @@ ID3D12Resource* DX12RenderingPipeline::GetCurrentBackBuffer() const
 
 ID3D12Resource* DX12RenderingPipeline::GetDepthStencil() const
 {
-	return mst_DepthStencil.pResource.Get();
+	return mp_DepthStencil.Get();
 }
 
 //*********************************************************
@@ -439,6 +439,18 @@ D3D12_INDEX_BUFFER_VIEW DX12RenderingPipeline::CreateIndexBufferView(Microsoft::
 	indexBufferViewDesc.Format = e_Format;	// DXGI_FORMAT_R16_UINT or DXGI_FORMAT_R32_UINT
 
 	return indexBufferViewDesc;
+}
+
+void DX12RenderingPipeline::CreateConstantBufferView(ID3D12DescriptorHeap* st_CbvHeap, D3D12_GPU_VIRTUAL_ADDRESS ui64_CbvAddress, UINT ui_SizeInBytes)
+{
+	// Creates a constant buffer descriptor in the given descriptor heap
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+	cbvDesc.BufferLocation = ui64_CbvAddress;
+	cbvDesc.SizeInBytes = ui_SizeInBytes;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE cbvDescriptor;
+
+	DX12RenderingPipeline::GetDevice()->CreateConstantBufferView(&cbvDesc, st_CbvHeap->GetCPUDescriptorHandleForHeapStart());
 }
 
 //*********************************************************
