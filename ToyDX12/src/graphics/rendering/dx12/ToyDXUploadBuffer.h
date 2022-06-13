@@ -20,6 +20,8 @@ namespace ToyDX
 		void CopyData(int i_Index, void* p_Data, size_t sz_DataSizeInBytes);
 		void Destroy();
 
+		size_t GetElementSizeInBytes() const { return m_szElementSizeInBytes; }
+
 		bool IsConstantBuffer() { return m_bIsConstantBuffer; };
 
 		~UploadBuffer() = default;
