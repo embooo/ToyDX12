@@ -102,7 +102,8 @@ public:
 	ToyDX::Resource mst_DepthStencil;
 
 	// Cached informations 
-	DX12CachedValues m_CachedValues;
+	static DX12CachedValues& GetCachedValues() { return s_CachedValues; }
+	static DX12CachedValues s_CachedValues;
 };
 
 

@@ -10,6 +10,7 @@ ComPtr<ID3D12Fence>					DX12RenderingPipeline::s_Fence;
 ComPtr<ID3D12GraphicsCommandList>	DX12RenderingPipeline::s_CommandList;
 ComPtr<ID3D12CommandQueue>			DX12RenderingPipeline::s_CommandQueue;
 ComPtr<ID3D12CommandAllocator>		DX12RenderingPipeline::s_CmdAllocator;
+DX12CachedValues					DX12RenderingPipeline::s_CachedValues;
 
 void DX12RenderingPipeline::Init()
 {
@@ -33,9 +34,9 @@ void DX12RenderingPipeline::Init(const Win32Window& p_Window)
 	mp_DSVDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
 
 	// Cache descriptor sizes for later usage
-	m_CachedValues.descriptorSizes.RTV = s_TDXDevice->GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	m_CachedValues.descriptorSizes.DSV = s_TDXDevice->GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-	m_CachedValues.descriptorSizes.CBV_SRV_UAV = s_TDXDevice->GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	s_CachedValues.descriptorSizes.RTV = s_TDXDevice->GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	s_CachedValues.descriptorSizes.DSV = s_TDXDevice->GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+	s_CachedValues.descriptorSizes.CBV_SRV_UAV = s_TDXDevice->GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	// Create the swap chain and depth stencil
 	CreateSwapchain(Win32Window::GetHWND(), p_Window.GetWidth(), p_Window.GetHeight());
@@ -192,7 +193,7 @@ void DX12RenderingPipeline::CreateSwapchain(HWND hWnd,  UINT ui_Width, UINT ui_H
 		m_SwapChainRTViews[i] = rtvHeapHandle;
 
 		// Offset to next descriptor
-		rtvHeapHandle.Offset(1, m_CachedValues.descriptorSizes.RTV);
+		rtvHeapHandle.Offset(1, s_CachedValues.descriptorSizes.RTV);
 	}
 }
 
@@ -348,7 +349,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE DX12RenderingPipeline::GetCurrentBackBufferView()
 	return CD3DX12_CPU_DESCRIPTOR_HANDLE(
 		mp_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),// Handle to start of descriptor heap
 		m_iCurrentBackBuffer, // Index of the RTV in heap
-		m_CachedValues.descriptorSizes.RTV); // Size (in bytes) of a RTV descriptor
+		s_CachedValues.descriptorSizes.RTV); // Size (in bytes) of a RTV descriptor
 }
 
 //*********************************************************
