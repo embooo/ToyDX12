@@ -32,5 +32,5 @@ const D3D12_INPUT_ELEMENT_DESC VertexElementsDesc[]
 	{ "TEXCOORD",	1,	DXGI_FORMAT_R32G32_FLOAT,		0,	32,	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 };
 
-static const D3D12_INPUT_LAYOUT_DESC BasicVertexInputLayoutDesc = { BasicVertexElementsDesc, 2 };
-static const D3D12_INPUT_LAYOUT_DESC VertexInputLayoutDesc		= { VertexElementsDesc, 4 };
+static D3D12_INPUT_LAYOUT_DESC BasicVertexInputLayoutDesc = { BasicVertexElementsDesc, 2 };
+static D3D12_INPUT_LAYOUT_DESC VertexInputLayoutDesc		= { VertexElementsDesc, 4 };
