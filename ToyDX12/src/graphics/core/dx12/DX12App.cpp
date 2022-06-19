@@ -1,6 +1,9 @@
 #include "pch.h"
 
+#include "Timer.h"
+
 #include "DX12App.h"
+#include "DX12RenderingPipeline.h"
 
 DX12App::DX12App(HINSTANCE hInstance)
     : m_hInstance(hInstance)
@@ -12,6 +15,7 @@ bool DX12App::Initialize()
 {
     InitWindow(m_hInstance, SW_SHOW); // Init a Win32 window
     InitRenderingPipeline(); // Init Direct3D
+    sp_Timer = std::make_unique<Timer>();
 
     return true;
 }
@@ -19,7 +23,7 @@ bool DX12App::Initialize()
 bool DX12App::InitWindow(HINSTANCE hInstance, int nCmdShow)
 {
     // Initialize Window
-	mp_Window = std::make_unique<Win32Window>(1280, 720, L"ToyDX12");
+	mp_Window = std::make_unique<Win32Window>(800, 800, L"ToyDX12");
 	mp_Window->Init(hInstance, nCmdShow);
     mp_Window->SetAppHandle(this);
 
@@ -55,6 +59,9 @@ DX12App::~DX12App()
 int DX12App::Run()
 {
     MSG msg = {};
+
+    sp_Timer->Reset();
+
     while (msg.message != WM_QUIT)
     {
         // Process any messages in the queue.
@@ -65,14 +72,17 @@ int DX12App::Run()
         }
         else // Engine related updates/draws
         {
+            sp_Timer->Tick();
+
             if (bIsPaused)
             {
                 Sleep(100);
             }
             else
             {
-                Update();
-                Draw();
+                const double& dt = sp_Timer->GetDeltaTime() * 1000;
+                Update(dt );
+                Draw(dt );
             }
 
         }
@@ -112,6 +122,10 @@ void DX12App::OnMouseUp(int xPos, int yPos)
 void DX12App::OnMouseDown(int xPos, int yPos)
 {
     
+}
+
+void DX12App::OnKeyPressed(WPARAM buttonState, LPARAM lParam)
+{
 }
 
 

@@ -1,7 +1,9 @@
 #pragma once
 
 #include "IApp.h"
-#include "DX12RenderingPipeline.h"
+
+class Timer;
+class DX12RenderingPipeline;
 
 class DX12App
 {
@@ -21,8 +23,8 @@ public:
 	// App specific functions
 	// For example : code to init/update meshes, cameras, animations ...
 	virtual void Init() = 0; 
-	virtual void Update() = 0;
-	virtual void Draw() = 0;
+	virtual void Update(double deltaTime) = 0;
+	virtual void Draw(double deltaTime) = 0;
 	virtual void Terminate() = 0;
 
 	// Event handlers
@@ -31,6 +33,7 @@ public:
 	virtual void OnMouseMove(WPARAM buttonState, int xPos, int yPos);
 	virtual void OnMouseUp(int xPos, int yPos);
 	virtual void OnMouseDown(int xPos, int yPos);
+	virtual void OnKeyPressed(WPARAM buttonState, LPARAM lParam);
 
 	// App state variables
 	bool bIsPaused = false;
@@ -38,7 +41,7 @@ public:
 
 protected:
 	static DX12App* s_App;
-
+	std::unique_ptr<Timer> sp_Timer;
 	HINSTANCE m_hInstance;
 	std::unique_ptr<Win32Window> mp_Window;
 	std::unique_ptr<DX12RenderingPipeline> mp_DX12RenderingPipeline;
