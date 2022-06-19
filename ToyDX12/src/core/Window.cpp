@@ -203,6 +203,9 @@ void Win32Window::OnResize(LPARAM lParam)
 
     bIsResizing = false;
 
+    // Propagate
+    m_AppHandle->OnResize(lParam);
+
     LOG_INFO("Event : Window resize (AR={0}): {1} {2}", m_fAspectRatio, m_Width, m_Height);
 }
 

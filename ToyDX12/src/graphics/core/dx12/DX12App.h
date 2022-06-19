@@ -28,8 +28,8 @@ public:
 	virtual void Terminate() = 0;
 
 	// Event handlers
-	virtual void OnResize();
-	virtual void OnMouseClick();
+	virtual void OnResize(LPARAM lParam);
+	virtual void OnMouseClick(WPARAM buttonState, int xPos, int yPos);
 	virtual void OnMouseMove(WPARAM buttonState, int xPos, int yPos);
 	virtual void OnMouseUp(int xPos, int yPos);
 	virtual void OnMouseDown(int xPos, int yPos);
@@ -38,6 +38,10 @@ public:
 	// App state variables
 	bool bIsPaused = false;
 	float GetWindowAspectRatio() { return mp_Window->GetAspectRatio(); }
+
+	bool bFirstClick = false;
+	int m_LastClickPosX = 0;
+	int m_LastClickPosY = 0;
 
 protected:
 	static DX12App* s_App;

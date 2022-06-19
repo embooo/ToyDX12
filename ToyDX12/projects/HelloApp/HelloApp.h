@@ -24,7 +24,7 @@ public:
 	virtual void Terminate() override;
 
 	// Event handlers
-	virtual void OnResize() override;
+	virtual void OnResize(LPARAM lParam) override;
 	virtual void OnMouseMove(WPARAM buttonState, int xPos, int yPos) override;
 	virtual void OnKeyPressed(WPARAM buttonState, LPARAM lParam) override;
 

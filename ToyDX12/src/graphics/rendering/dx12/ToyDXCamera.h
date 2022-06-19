@@ -59,7 +59,7 @@ namespace ToyDX
 		Camera() = default;
 
 		void Init(const Frustum& st_Frustum);
-		void Rotate(float fMousePosX, float fMousePosY, double deltaTime);
+		void Rotate(float fMouseDeltaX, float fMouseDeltaY, double deltaTime);
 		void Translate(XMVECTOR v_Axis, double deltaTime);
 
 		// Updates camera position based on the current move states 
@@ -95,9 +95,9 @@ namespace ToyDX
 		float m_fLastMousePosX = 0.0f;
 		float m_fLastMousePosY = 0.0f;
 		
-		float f_TranslateIncrement     = 0.05f;
-		float m_fVerticalSensitivity   = 0.1f;
-		float m_fHorizontalSensitivity = 0.1f;
+		float f_TranslateIncrement     = 2.5f;
+		float m_fVerticalSensitivity   = 15.0f;
+		float m_fHorizontalSensitivity = 15.0f;
 
 		float m_fPitch = 0.0;
 		float m_fYaw   = 0.0;	// Vertical angle

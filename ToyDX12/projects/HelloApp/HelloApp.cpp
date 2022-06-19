@@ -126,17 +126,32 @@ void HelloApp::Draw(double deltaTime)
 
 //*********************************************************
 
-void HelloApp::OnResize()
+void HelloApp::OnResize(LPARAM lParam)
 {
+	m_Camera.SetFrustum({ .fAspectRatio = GetWindowAspectRatio() });
 	m_Camera.UpdateProjMatrix();
 }
+
 
 void HelloApp::OnMouseMove(WPARAM buttonState, int xPos, int yPos)
 {
 	if (buttonState & MK_LBUTTON)
 	{
-		m_Camera.Rotate(xPos, yPos, m_DeltaTime);
-		m_Camera.UpdateViewMatrix();
+		if (bFirstClick)
+		{
+			m_LastClickPosX = xPos;
+			m_LastClickPosY = yPos;
+			bFirstClick = false;
+		}
+		else
+		{
+			m_Camera.Rotate(xPos - m_LastClickPosX, yPos - m_LastClickPosY, m_DeltaTime);
+			m_Camera.UpdateViewMatrix();
+
+			m_LastClickPosX = xPos;
+			m_LastClickPosY = yPos;
+		}
+
 	}
 
 }

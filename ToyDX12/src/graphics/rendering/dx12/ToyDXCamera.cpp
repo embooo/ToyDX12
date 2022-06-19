@@ -64,31 +64,23 @@ namespace ToyDX
 
 	}
 
-	void Camera::Rotate(float fMousePosX, float fMousePosY, double deltaTime)
+	void Camera::Rotate(float fMouseDeltaX, float fMouseDeltaY, double deltaTime)
 	{
-		float fDx = fMousePosX - m_fLastMousePosX;
-		float fDy = fMousePosY - m_fLastMousePosY;
-
 		// Yaw
-		if (abs(fDx) <= 1.0f)
 		{
-			XMMATRIX R = XMMatrixRotationAxis(m_Up, XMConvertToRadians(fDx * deltaTime * m_fHorizontalSensitivity) ) ;
+			XMMATRIX R = XMMatrixRotationAxis(m_Up, XMConvertToRadians(fMouseDeltaX * deltaTime) * m_fVerticalSensitivity) ;
 
 			m_Forward = XMVector3TransformNormal(m_Forward, R);
 			m_Right   = XMVector3TransformNormal(m_Right, R);
 		}
 
 		// Pitch
-		if (abs(fDy) <= 1.0f)
 		{
-			XMMATRIX R = XMMatrixRotationAxis(m_Right, XMConvertToRadians(fDy * deltaTime * m_fVerticalSensitivity) );
+			XMMATRIX R = XMMatrixRotationAxis(m_Right, XMConvertToRadians(fMouseDeltaY * deltaTime * m_fVerticalSensitivity) );
 
 			m_Forward = XMVector3TransformNormal(m_Forward, R);
 			m_Up = XMVector3TransformNormal(m_Up, R);
 		}
-
-		m_fLastMousePosX = fMousePosX;
-		m_fLastMousePosY = fMousePosY;
 	}
 
 	Camera& Camera::SetControlParameters(const ControlParams& st_ControlParams, float fRadius)

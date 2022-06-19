@@ -80,7 +80,7 @@ int DX12App::Run()
             }
             else
             {
-                const double& dt = sp_Timer->GetDeltaTime() * 1000;
+                const double& dt = sp_Timer->GetDeltaTime();
                 Update(dt );
                 Draw(dt );
             }
@@ -100,14 +100,15 @@ void DX12App::Terminate()
 
 //*********************************************************
 
-void DX12App::OnResize()
+void DX12App::OnResize(LPARAM lParam)
 {
    
 }
 
-void DX12App::OnMouseClick()
+void DX12App::OnMouseClick(WPARAM buttonState, int xPos, int yPos)
 {
 }
+
 
 void DX12App::OnMouseMove(WPARAM buttonState, int xPos, int yPos)
 {
@@ -121,7 +122,9 @@ void DX12App::OnMouseUp(int xPos, int yPos)
 
 void DX12App::OnMouseDown(int xPos, int yPos)
 {
-    
+    bFirstClick = true;
+    m_LastClickPosX = xPos;
+    m_LastClickPosY = yPos;
 }
 
 void DX12App::OnKeyPressed(WPARAM buttonState, LPARAM lParam)

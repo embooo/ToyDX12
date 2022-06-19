@@ -39,14 +39,13 @@ void ToyDX::Renderer::Render()
 	ID3D12GraphicsCommandList& rst_CommandList = DX12RenderingPipeline::GetCommandList();
 	ID3D12CommandQueue& rst_CommandQueue = DX12RenderingPipeline::GetCommandQueue();
 
-	int w = 1;
-	int h = 1;
+	int w = 2;
+	int h = 2;
 
 	for (int x = 0; x < w; x++)
 	{
 		for (int z = 0; z < h; z++)
 		{
-			
 			rst_CommandList.DrawIndexedInstanced(m_Mesh->IndexCount(), 1, 0, 0, 0);
 		}
 	}
