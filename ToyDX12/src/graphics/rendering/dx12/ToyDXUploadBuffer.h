@@ -13,6 +13,7 @@ namespace ToyDX
 		UploadBuffer();
 		UploadBuffer(const UploadBuffer&) = delete;
 		UploadBuffer& operator=(const UploadBuffer&) = delete;
+		UploadBuffer& operator=(UploadBuffer&& other) noexcept;
 
 		ID3D12Resource* GetResource() const { return m_UploadBuffer.Get(); }
 

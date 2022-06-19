@@ -5,6 +5,21 @@ ToyDX::UploadBuffer::UploadBuffer()
 	: m_bIsConstantBuffer(false), m_MappedData(nullptr), m_szElementSizeInBytes(0) 
 {}
 
+ToyDX::UploadBuffer& ToyDX::UploadBuffer::operator=(UploadBuffer&& other) noexcept
+{
+	if (this != &other)
+	{
+		m_UploadBuffer = std::move(other.m_UploadBuffer);
+		m_MappedData = other.m_MappedData;
+		m_szElementSizeInBytes = other.m_szElementSizeInBytes;
+		m_bIsConstantBuffer = other.m_bIsConstantBuffer;
+
+		other.m_UploadBuffer->Release();
+	}
+
+	return *this;
+}
+
 //*********************************************************
 
 void ToyDX::UploadBuffer::Create(ID3D12Device* p_Device, UINT ui_NumElements, size_t sz_ElementSizeInBytes, bool bIsConstantBuffer)
@@ -34,7 +49,7 @@ void ToyDX::UploadBuffer::Create(ID3D12Device* p_Device, UINT ui_NumElements, si
 
 	// Obtain a pointer to the resource data
 	// Map the entire resource by specifying nullptr as the range
-	ThrowIfFailed(m_UploadBuffer->Map(0, nullptr, (void**)m_MappedData));
+	ThrowIfFailed(m_UploadBuffer->Map(0, nullptr, (void**)(&m_MappedData) ));
 }
 
 //*********************************************************
