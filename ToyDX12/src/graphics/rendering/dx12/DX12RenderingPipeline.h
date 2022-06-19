@@ -42,8 +42,8 @@ public:
 	static void CloseCommandList();
 	static void FlushCommandQueue();
 
-	D3D12_CPU_DESCRIPTOR_HANDLE GetDepthStencilView();
-	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackBufferView() ;
+	D3D12_CPU_DESCRIPTOR_HANDLE GetDepthStencilView() const { return m_DepthStencilView; }
+	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackBufferView() const { return m_SwapChainRTViews[m_iCurrentBackBuffer]; }
 
 	ID3D12Resource* GetCurrentBackBuffer() const;
 	ID3D12Resource* GetDepthStencil() const;
@@ -55,10 +55,23 @@ public:
 	const D3D12_CLEAR_VALUE& GetClearValues() const { return m_ClearValues; }
 
 	// Creates a default buffer in the GPU default heap by using an upload buffer as an intermediate CPU accessible buffer
-	static ComPtr<ID3D12Resource> CreateDefaultBuffer(const void* pData, UINT64 ui64_SizeInBytes, Microsoft::WRL::ComPtr<ID3D12Resource>& p_UploadBuffer);
+	static ComPtr<ID3D12Resource> CreateDefaultBuffer(const void* pData, UINT64 ui64_SizeInBytes, Microsoft::WRL::ComPtr<ID3D12Resource>& p_UploadBuffer, D3D12_RESOURCE_STATES e_ResourceState);
 	static D3D12_VERTEX_BUFFER_VIEW CreateVertexBufferView(Microsoft::WRL::ComPtr<ID3D12Resource>& p_VertexBufferGPU, UINT ui_SizeInBytes, UINT ui_StrideInBytes);
 	static D3D12_INDEX_BUFFER_VIEW CreateIndexBufferView(Microsoft::WRL::ComPtr<ID3D12Resource>& p_IndexBufferGPU, UINT ui_SizeInBytes, DXGI_FORMAT e_Format = DXGI_FORMAT_R16_UINT);
 	static void CreateConstantBufferView(ID3D12DescriptorHeap* st_CbvHeap, D3D12_GPU_VIRTUAL_ADDRESS ui64_CbvAddress, UINT ui_SizeInBytes);
+
+	// Pipeline state object
+	static ComPtr<ID3D12PipelineState> CreatePipelineStateObject(
+		ID3D12RootSignature* p_RootSignature,
+		ID3DBlob* st_VsByteCode,
+		ID3DBlob* st_PsByteCode,
+		D3D12_INPUT_LAYOUT_DESC		  st_InputLayout,
+		DXGI_FORMAT					  a_RtvFormats[8],
+		CD3DX12_RASTERIZER_DESC		  st_RasterizerState,
+		UINT						  ui_NumRenderTargets,
+		DXGI_SAMPLE_DESC			  st_SampleDesc = DX12RenderingPipeline::s_SampleDesc,
+		DXGI_FORMAT					  e_DsvFormat = DXGI_FORMAT_D32_FLOAT,
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE st_PrimitiveType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 
 	// Device
 	static std::unique_ptr<DX12Device> s_TDXDevice;
@@ -94,11 +107,11 @@ public:
 	UINT m_BackBufferWidth  = 0;
 	UINT m_BackBufferHeight = 0;
 	DXGI_FORMAT m_BackBufferFormat;
-	DXGI_SAMPLE_DESC m_SampleDesc;
+	static DXGI_SAMPLE_DESC s_SampleDesc;
 
 	// Depth-Stencil
 	ComPtr<ID3D12Resource> mp_DepthStencil;
-
+	CD3DX12_CPU_DESCRIPTOR_HANDLE m_DepthStencilView;
 	ToyDX::Resource mst_DepthStencil;
 
 	// Cached informations 

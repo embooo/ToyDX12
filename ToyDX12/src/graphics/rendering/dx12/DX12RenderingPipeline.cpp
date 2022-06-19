@@ -11,6 +11,7 @@ ComPtr<ID3D12GraphicsCommandList>	DX12RenderingPipeline::s_CommandList;
 ComPtr<ID3D12CommandQueue>			DX12RenderingPipeline::s_CommandQueue;
 ComPtr<ID3D12CommandAllocator>		DX12RenderingPipeline::s_CmdAllocator;
 DX12CachedValues					DX12RenderingPipeline::s_CachedValues;
+DXGI_SAMPLE_DESC					DX12RenderingPipeline::s_SampleDesc;
 
 void DX12RenderingPipeline::Init()
 {
@@ -43,8 +44,8 @@ void DX12RenderingPipeline::Init(const Win32Window& p_Window)
 	CreateDepthStencil(m_BackBufferWidth, m_BackBufferHeight);
 
 	// Set viewport and scissor rectangle
-	SetViewport(m_BackBufferWidth, m_BackBufferWidth);
-	SetScissorRectangle(m_BackBufferWidth, m_BackBufferWidth);
+	SetViewport(m_BackBufferWidth, m_BackBufferHeight);
+	SetScissorRectangle(m_BackBufferWidth, m_BackBufferHeight);
 
 	CloseCommandList();
 }
@@ -141,7 +142,7 @@ void DX12RenderingPipeline::CreateSwapchain(HWND hWnd,  UINT ui_Width, UINT ui_H
 	st_SwapChainDesc.SampleDesc.Count = m_bUse4xMsaa ? 4 : 1; //sd.SampleDesc.Count = m4xMsaaState ? 4 : 1;
 	st_SwapChainDesc.SampleDesc.Quality = m_bUse4xMsaa ? (m_Msaa4xQuality - 1) : 0;	//sd.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
 
-	m_SampleDesc = { st_SwapChainDesc.SampleDesc.Count, st_SwapChainDesc.SampleDesc.Quality };
+	s_SampleDesc = { st_SwapChainDesc.SampleDesc.Count, st_SwapChainDesc.SampleDesc.Quality };
 
 	// Swapchain usage : render to backbuffer
 	st_SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -235,7 +236,7 @@ void DX12RenderingPipeline::CreateDepthStencil(UINT ui_Width, UINT ui_Height, UI
 	depthStencilDesc.DepthOrArraySize    = 1;
 	depthStencilDesc.MipLevels			 = u_mipLevels;
 	depthStencilDesc.Format				 = e_Format;
-	depthStencilDesc.SampleDesc			 = m_SampleDesc;
+	depthStencilDesc.SampleDesc			 = s_SampleDesc;
 	depthStencilDesc.Layout				 = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 	depthStencilDesc.Flags			     = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 	
@@ -244,9 +245,9 @@ void DX12RenderingPipeline::CreateDepthStencil(UINT ui_Width, UINT ui_Height, UI
 	m_ClearValues.Format			   = e_Format;
 	m_ClearValues.DepthStencil.Depth   = 1.0f;
 	m_ClearValues.DepthStencil.Stencil = 0;
-	m_ClearValues.Color[0] = 1.0f;
-	m_ClearValues.Color[1] = 0.0f;
-	m_ClearValues.Color[2] = 1.0f;
+	m_ClearValues.Color[0] = 0.1f;
+	m_ClearValues.Color[1] = 0.1f;
+	m_ClearValues.Color[2] = 0.1f;
 	m_ClearValues.Color[3] = 1.0f;
 
 	// Heap that the resource will be commited to
@@ -263,9 +264,9 @@ void DX12RenderingPipeline::CreateDepthStencil(UINT ui_Width, UINT ui_Height, UI
 	mp_DepthStencil->SetName(L"Depth-Stencil Resource");
 
 	// Create Depth-Stencil View
-	CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHeapHandle(mp_DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-
-	s_TDXDevice->GetDevice().CreateDepthStencilView(mp_DepthStencil.Get(), nullptr, dsvHeapHandle);
+	m_DepthStencilView = CD3DX12_CPU_DESCRIPTOR_HANDLE(mp_DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+	
+	s_TDXDevice->GetDevice().CreateDepthStencilView(mp_DepthStencil.Get(), nullptr, m_DepthStencilView);
 }
 
 //*********************************************************
@@ -342,15 +343,6 @@ void DX12RenderingPipeline::FlushCommandQueue()
 	}
 }
 
-//*********************************************************
-
-D3D12_CPU_DESCRIPTOR_HANDLE DX12RenderingPipeline::GetCurrentBackBufferView()
-{
-	return CD3DX12_CPU_DESCRIPTOR_HANDLE(
-		mp_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),// Handle to start of descriptor heap
-		m_iCurrentBackBuffer, // Index of the RTV in heap
-		s_CachedValues.descriptorSizes.RTV); // Size (in bytes) of a RTV descriptor
-}
 
 //*********************************************************
 
@@ -364,16 +356,11 @@ ID3D12Resource* DX12RenderingPipeline::GetDepthStencil() const
 	return mp_DepthStencil.Get();
 }
 
-//*********************************************************
 
-D3D12_CPU_DESCRIPTOR_HANDLE DX12RenderingPipeline::GetDepthStencilView() 
-{
-	return mp_DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-}
 
 //*********************************************************
 
-ComPtr<ID3D12Resource> DX12RenderingPipeline::CreateDefaultBuffer(const void* pData, UINT64 ui64_SizeInBytes, Microsoft::WRL::ComPtr<ID3D12Resource>& p_UploadBuffer)
+ComPtr<ID3D12Resource> DX12RenderingPipeline::CreateDefaultBuffer(const void* pData, UINT64 ui64_SizeInBytes, Microsoft::WRL::ComPtr<ID3D12Resource>& p_UploadBuffer, D3D12_RESOURCE_STATES e_ResourceState)
 {
 	// To create a buffer in the Default Heap that can only be accessed by the GPU
 	// We first need to store the data into an Upload Buffer in the Upload Heap accessible by the CPU
@@ -409,9 +396,14 @@ ComPtr<ID3D12Resource> DX12RenderingPipeline::CreateDefaultBuffer(const void* pD
 	subResourceDataDesc.RowPitch = ui64_SizeInBytes;
 
 	//	Schedule the copy to the default buffer, by using the upload buffer as an intermediate buffer
-	UpdateSubresources<1>(&DX12RenderingPipeline::GetCommandList(),
-		p_DefaultBuffer.Get(), p_UploadBuffer.Get(),
-		0, 0, 1, &subResourceDataDesc);
+	UpdateSubresources<1>(&DX12RenderingPipeline::GetCommandList(), p_DefaultBuffer.Get(), p_UploadBuffer.Get(), 0, 0, 1, &subResourceDataDesc);
+
+	CD3DX12_RESOURCE_BARRIER barriers[1] =
+	{
+		CD3DX12_RESOURCE_BARRIER::Transition(p_DefaultBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, e_ResourceState)
+	};
+
+	DX12RenderingPipeline::GetCommandList().ResourceBarrier(_countof(barriers), barriers);
 
 	// The upload buffer has to be kept alive at least until the UpdateSubresources command is executed in the command queue
 	// After that, the Upload buffer can be safely released
@@ -435,6 +427,7 @@ D3D12_VERTEX_BUFFER_VIEW DX12RenderingPipeline::CreateVertexBufferView(Microsoft
 D3D12_INDEX_BUFFER_VIEW DX12RenderingPipeline::CreateIndexBufferView(Microsoft::WRL::ComPtr<ID3D12Resource>& p_IndexBufferGPU, UINT ui_SizeInBytes, DXGI_FORMAT e_Format)
 {
 	D3D12_INDEX_BUFFER_VIEW indexBufferViewDesc = {};
+
 	indexBufferViewDesc.BufferLocation = p_IndexBufferGPU.Get()->GetGPUVirtualAddress();
 	indexBufferViewDesc.SizeInBytes = ui_SizeInBytes;	// Size in bytes of the index buffer
 	indexBufferViewDesc.Format = e_Format;	// DXGI_FORMAT_R16_UINT or DXGI_FORMAT_R32_UINT
@@ -452,6 +445,53 @@ void DX12RenderingPipeline::CreateConstantBufferView(ID3D12DescriptorHeap* st_Cb
 	D3D12_CPU_DESCRIPTOR_HANDLE cbvDescriptor;
 
 	DX12RenderingPipeline::GetDevice()->CreateConstantBufferView(&cbvDesc, st_CbvHeap->GetCPUDescriptorHandleForHeapStart());
+}
+
+ComPtr<ID3D12PipelineState> DX12RenderingPipeline::CreatePipelineStateObject(
+	ID3D12RootSignature* p_RootSignature,
+	ID3DBlob*		  st_VsByteCode,
+	ID3DBlob*		  st_PsByteCode,
+	D3D12_INPUT_LAYOUT_DESC		  st_InputLayout,
+	DXGI_FORMAT					  a_RtvFormats[8],
+	CD3DX12_RASTERIZER_DESC		  st_RasterizerState,
+	UINT						  ui_NumRenderTargets,
+	DXGI_SAMPLE_DESC			  st_SampleDesc,
+	DXGI_FORMAT					  e_DsvFormat,
+	D3D12_PRIMITIVE_TOPOLOGY_TYPE st_PrimitiveType)
+{
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {};
+
+	pipelineStateDesc.InputLayout = st_InputLayout;
+	pipelineStateDesc.pRootSignature = p_RootSignature;
+	pipelineStateDesc.VS = { (BYTE*)st_VsByteCode->GetBufferPointer(), st_VsByteCode->GetBufferSize() };
+	pipelineStateDesc.PS = { (BYTE*)st_PsByteCode->GetBufferPointer(), st_PsByteCode->GetBufferSize() };
+	pipelineStateDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	pipelineStateDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	pipelineStateDesc.DepthStencilState.DepthEnable = false;
+	pipelineStateDesc.DepthStencilState.StencilEnable = false;
+	pipelineStateDesc.SampleMask = UINT_MAX;
+	pipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	pipelineStateDesc.NumRenderTargets = 1;
+	pipelineStateDesc.RTVFormats[0] = a_RtvFormats[0];
+	pipelineStateDesc.DSVFormat  = e_DsvFormat;
+	pipelineStateDesc.SampleDesc = st_SampleDesc;
+
+	//.StreamOutput = 0,
+	//.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT), // Default blend state for now
+	//.SampleMask = 0xFFFFFFFF,
+	//.RasterizerState = st_RasterizerState,
+	//.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT), // Default depth-stencil state for now
+	//.InputLayout = st_InputLayout,
+	//.PrimitiveTopologyType = st_PrimitiveType,
+	//.NumRenderTargets = ui_NumRenderTargets,
+	//.RTVFormats = *a_RtvFormats,
+	//.DSVFormat = e_DsvFormat,
+	//.SampleDesc = st_SampleDesc
+
+	ComPtr<ID3D12PipelineState> pso;
+	ThrowIfFailed(DX12RenderingPipeline::GetDevice()->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(pso.GetAddressOf())));
+
+	return pso;
 }
 
 //*********************************************************
