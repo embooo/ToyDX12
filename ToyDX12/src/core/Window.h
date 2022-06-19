@@ -54,6 +54,7 @@ public:
 	void OnMouseUp(LPARAM lParam);
 	void OnMouseDown(LPARAM lParam);
 	void OnMouseMove(WPARAM buttonState, LPARAM lParam);
+	void OnKeyPressed(WPARAM buttonState, LPARAM lParam);
 
 	bool bIsResizing = false;
 

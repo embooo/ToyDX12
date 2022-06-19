@@ -153,6 +153,11 @@ LRESULT Win32Window::WndProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         OnMouseUp(lParam);
         return 0;
 
+    //******************* Keyboard events 
+    case WM_KEYDOWN:
+        OnKeyPressed(wParam, lParam);
+        return 0;
+
     //******************* Window events 
     // https://docs.microsoft.com/fr-fr/windows/win32/winmsg/windowing
     case WM_SIZING: // User is Resizing window
@@ -223,6 +228,11 @@ void Win32Window::OnMouseMove(WPARAM buttonState, LPARAM lParam)
     int yPos = GET_Y_LPARAM(lParam);
 
     m_AppHandle->OnMouseMove(buttonState, xPos, yPos);
+}
+
+void Win32Window::OnKeyPressed(WPARAM buttonState, LPARAM lParam)
+{
+    m_AppHandle->OnKeyPressed(buttonState, lParam);
 }
 
 //*********************************************************
