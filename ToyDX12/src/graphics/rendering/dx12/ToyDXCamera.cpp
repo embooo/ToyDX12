@@ -1,55 +1,135 @@
 #include "pch.h"
 #include "ToyDXCamera.h"
+#include "MathUtil.h"
 
-using namespace DirectX;
-
-void ToyDX::Camera::Init()
+namespace ToyDX
 {
-	SetControlParameters();
-	SetFrustum();
-	BuildViewMatrix();
+	using namespace DirectX;
+
+	void Camera::Init(const Frustum& st_Frustum)
+	{
+		SetControlParameters();
+		SetFrustum(st_Frustum);
+		UpdateProjMatrix();
+		UpdateViewMatrix();
+
+	}
+
+	bool Camera::NeedUpdate()
+	{
+		return m_MoveState != CameraState::None;
+	}
+
+	void Camera::UpdatePosition(double deltaTime)
+	{
+		if (HasFlag<CameraState>(m_MoveState, CameraState::MoveForward))
+		{
+			Translate(m_Forward, deltaTime);
+		}
+
+		if (HasFlag<CameraState>(m_MoveState, CameraState::MoveBackward))
+		{
+			Translate(-1*m_Forward, deltaTime);
+		}
+
+		if (HasFlag<CameraState>(m_MoveState, CameraState::MoveLeft))
+		{
+			Translate(-1*m_Right, deltaTime);
+		}
+
+		if (HasFlag<CameraState>(m_MoveState, CameraState::MoveRight))
+		{
+			Translate(m_Right, deltaTime);
+		}
+
+		if (HasFlag<CameraState>(m_MoveState, CameraState::MoveUp))
+		{
+			Translate(m_Up, deltaTime);
+		}
+
+		if (HasFlag<CameraState>(m_MoveState, CameraState::MoveDown))
+		{
+			Translate(-m_Up, deltaTime);
+		}
+
+		// Clear 
+		m_MoveState = CameraState::None;
+	}
+
+	void Camera::Translate(XMVECTOR v_Axis, double deltaTime)
+	{
+		m_Pos = XMVectorMultiplyAdd(XMVectorReplicate(f_TranslateIncrement * deltaTime), v_Axis, m_Pos);
+
+		LOG_WARN("({0}, {1}, {2}), dt = {3}", XMVectorGetX(m_Pos), XMVectorGetY(m_Pos), XMVectorGetZ(m_Pos), deltaTime);
+
+	}
+
+	void Camera::Rotate(float fMousePosX, float fMousePosY, double deltaTime)
+	{
+		float fDx = fMousePosX - m_fLastMousePosX;
+		float fDy = fMousePosY - m_fLastMousePosY;
+
+		// Yaw
+		if (abs(fDx) <= 1.0f)
+		{
+			XMMATRIX R = XMMatrixRotationAxis(m_Up, XMConvertToRadians(fDx * deltaTime * m_fHorizontalSensitivity) ) ;
+
+			m_Forward = XMVector3TransformNormal(m_Forward, R);
+			m_Right   = XMVector3TransformNormal(m_Right, R);
+		}
+
+		// Pitch
+		if (abs(fDy) <= 1.0f)
+		{
+			XMMATRIX R = XMMatrixRotationAxis(m_Right, XMConvertToRadians(fDy * deltaTime * m_fVerticalSensitivity) );
+
+			m_Forward = XMVector3TransformNormal(m_Forward, R);
+			m_Up = XMVector3TransformNormal(m_Up, R);
+		}
+
+		m_fLastMousePosX = fMousePosX;
+		m_fLastMousePosY = fMousePosY;
+	}
+
+	Camera& Camera::SetControlParameters(const ControlParams& st_ControlParams, float fRadius)
+	{
+		m_stControlParams = st_ControlParams;
+		
+		return *this;
+	}
+
+	Camera& Camera::UpdateViewMatrix()
+	{
+		m_Forward = XMVector3Normalize(m_Forward);
+		m_Up      = XMVector3Normalize(XMVector3Cross(m_Forward, m_Right));
+		m_Right   = XMVector3Cross(m_Up, m_Forward);
+
+		m_ViewMatrix = XMMatrixLookToLH(m_Pos, m_Forward, m_Up);
+		
+		return *this;
+	}
+
+	void Camera::AddMoveState(CameraState e_State)
+	{
+		m_MoveState = m_MoveState | e_State;
+	}
+
+	Camera& Camera::UpdateProjMatrix()
+	{
+
+		m_ProjMatrix = XMMatrixPerspectiveFovLH(m_stFrustum.fFovY, m_stFrustum.fAspectRatio, m_stFrustum.fNearZ, m_stFrustum.fFarZ);
+
+		return *this;
+	}
+
+	Camera& Camera::SetFrustum(const Frustum& st_Frustum)
+	{
+		m_stFrustum = st_Frustum;
+
+		UpdateProjMatrix();
+
+		return *this;
+	}
 }
 
-void ToyDX::Camera::Rotate(float fMousePosX, float fMousePosY)
-{
-	// Compute angle deltas in radians
-	float verticalAngleDeltaRad = m_fVerticalSensitivity * XMConvertToRadians(fMousePosX - m_fLastMousePosX);
-	float horizontalAngleDeltaRad = m_fHorizontalSensitivity * XMConvertToRadians(fMousePosY - m_fLastMousePosY);
-	
-	// Update angles
-	m_fTheta    = std::clamp(m_fTheta + verticalAngleDeltaRad, 0.1f, std::numbers::pi_v<float> -0.1f);
-	m_fPhi += horizontalAngleDeltaRad;
 
-	// Update previous mouse position
-	m_fLastMousePosX = fMousePosX;
-	m_fLastMousePosY = fMousePosY;
-}
-
-ToyDX::Camera& ToyDX::Camera::SetControlParameters(const ControlParams& st_ControlParams, float fRadius)
-{
-	m_stControlParams = st_ControlParams;
-	m_fRadius = fRadius;
-	return *this;
-}
-
-ToyDX::Camera& ToyDX::Camera::BuildViewMatrix()
-{
-	// Convert spherical (R, Theta, Phi) coordinates to cartesian (x, y, z)
-	float x = m_fRadius * cosf(m_fTheta) * sinf(m_fPhi);
-	float y = m_fRadius * sinf(m_fTheta) * sinf(m_fPhi);
-	float z = m_fRadius * cosf(m_fPhi);
-
-	XMVECTOR pos    = XMVectorSet(x, y, z, 1.0f);
-	XMVECTOR target = XMVectorZero();
-	XMVECTOR up     = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-
-	XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
-
-	return *this;
-}
-
-ToyDX::Camera& ToyDX::Camera::SetFrustum(const Frustum& st_Frustum)
-{
-	m_stFrustum = st_Frustum;
-	return *this;
-}
