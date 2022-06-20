@@ -66,21 +66,28 @@ namespace ToyDX
 
 	void Camera::Rotate(float fMouseDeltaX, float fMouseDeltaY, double deltaTime)
 	{
+		// Rotation is not commutative, order matters
+		// Combining Pitch and Yaw may add an unwanted roll to the camera
+		// A solution is to yaw around the global Y (up) axis and pitch around the local X (right) axis
+		// https://gamedev.stackexchange.com/questions/136174/im-rotating-an-object-on-two-axes-so-why-does-it-keep-twisting-around-the-thir
+		
+		// Pitch 
+		{ 
+			
+			XMMATRIX R = XMMatrixRotationAxis(m_Right, XMConvertToRadians(fMouseDeltaY * deltaTime * m_fVerticalSensitivity));
+
+			m_Forward = XMVector3TransformNormal(m_Forward, R);
+			m_Up = XMVector3TransformNormal(m_Up, R);
+		}
+		
 		// Yaw
-		{
-			XMMATRIX R = XMMatrixRotationAxis(m_Up, XMConvertToRadians(fMouseDeltaX * deltaTime) * m_fVerticalSensitivity) ;
+		{ 
+			XMMATRIX R = XMMatrixRotationY(XMConvertToRadians(fMouseDeltaX * deltaTime) * m_fVerticalSensitivity) ;
 
 			m_Forward = XMVector3TransformNormal(m_Forward, R);
 			m_Right   = XMVector3TransformNormal(m_Right, R);
 		}
 
-		// Pitch
-		{
-			XMMATRIX R = XMMatrixRotationAxis(m_Right, XMConvertToRadians(fMouseDeltaY * deltaTime * m_fVerticalSensitivity) );
-
-			m_Forward = XMVector3TransformNormal(m_Forward, R);
-			m_Up = XMVector3TransformNormal(m_Up, R);
-		}
 	}
 
 	Camera& Camera::SetControlParameters(const ControlParams& st_ControlParams, float fRadius)

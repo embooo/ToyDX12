@@ -1,6 +1,8 @@
 #pragma once
 #include <DirectXMath.h>
 
+const double M_PI = 3.1415926;
+
 class MathUtil
 {
 public:
