@@ -22,6 +22,7 @@ workspace "ToyEngine"
 	LibPaths["DirectX12"] = FilePaths.Extern .. "directx12"
 	LibPaths["Spdlog"] = FilePaths.Extern .. "spdlog"
 	LibPaths["DirectXMath"] = FilePaths.Extern .. "directxmath"
+	LibPaths["cgltf"] = FilePaths.Extern .. "cgltf"
 
 
 	BuildPaths = {}	  
@@ -48,6 +49,8 @@ for i, name in ipairs(projects) do
 		pchheader ("pch.h")
 		pchsource (FilePaths.Core .. "pch.cpp")
 
+
+
 		files 
 		{ 
 			FilePaths.Src .. "**.h",
@@ -62,7 +65,8 @@ for i, name in ipairs(projects) do
 			FilePaths.Extern,
 			LibPaths["DirectX12"],
 			FilePaths.Projects .. name .. "/**",
-			LibPaths["DirectXMath"]
+			LibPaths["DirectXMath"],
+			LibPaths["cgltf"]
 		}
 
 		links
@@ -76,6 +80,9 @@ for i, name in ipairs(projects) do
 		defines
 		{
 		}
+
+		filter { "files:" .. FilePaths["GraphicsCore"] .. "MeshLoader.cpp" }
+			flags { 'NoPCH' }
 		
 		targetdir	("ToyDX12/build/bin/" .. outputdir )
 		objdir		("ToyDX12/build/obj/" .. outputdir )
@@ -93,6 +100,9 @@ for i, name in ipairs(projects) do
 			runtime "Release"
 			optimize "on"
 			defines { "RELEASE_BUILD" }
+
+			
+
 end
 
 ------------------------------------------------------------------------------
