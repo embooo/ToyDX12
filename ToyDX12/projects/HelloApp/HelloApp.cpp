@@ -91,8 +91,8 @@ void HelloApp::Draw(double deltaTime)
 	D3D12_CPU_DESCRIPTOR_HANDLE depthStencilView = mp_DX12RenderingPipeline->GetDepthStencilView();
 
 	rst_CommandList.ClearDepthStencilView(depthStencilView, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
-		mp_DX12RenderingPipeline->GetClearValues().DepthStencil.Depth,
-		mp_DX12RenderingPipeline->GetClearValues().DepthStencil.Stencil,
+		1.0,
+		0,
 		0, nullptr); // Clear entire render target
 
 	// Specify the buffers we are going to render to.

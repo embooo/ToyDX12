@@ -18,7 +18,7 @@ void ToyDX::Renderer::Initialize()
 
 	// Create a mesh
 	m_Mesh = std::make_shared<ToyDX::Mesh>();
-	m_Mesh->CreateCube();
+	m_Mesh->CreateFromFile("./data/models/suzanne/scene.gltf");
 	m_Mesh->Scale({ 1, 1, 1 });
 
 	LoadShaders();
@@ -159,10 +159,10 @@ void ToyDX::Renderer::LoadShaders()
 {
 	m_DefaultVertexShader = std::make_shared<Shader>();
 	m_Mesh->GetInputLayout();
-	m_DefaultVertexShader->Compile(L"C:\\dev\\GithubRepos\\ToyDX12\\ToyDX12\\data\\shaders\\DefaultVertex.hlsl", "main", ShaderKind::VERTEX);
+	m_DefaultVertexShader->Compile(L"./data/shaders/DefaultVertex.hlsl", "main", ShaderKind::VERTEX);
 
 	m_DefaultPixelShader = std::make_shared<Shader>();
-	m_DefaultPixelShader->Compile(L"C:\\dev\\GithubRepos\\ToyDX12\\ToyDX12\\data\\shaders\\DefaultPixel.hlsl", "main", ShaderKind::PIXEL);
+	m_DefaultPixelShader->Compile(L"./data/shaders/DefaultPixel.hlsl", "main", ShaderKind::PIXEL);
 }
 
 void ToyDX::Renderer::Terminate()
