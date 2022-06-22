@@ -2,6 +2,8 @@
 
 #include "wrl/client.h"
 #include "MathUtil.h"
+#include "DX12RenderingPipeline.h"
+#include "DX12Geometry.h"
 
 struct D3D12_INDEX_BUFFER_VIEW;
 struct D3D12_VERTEX_BUFFER_VIEW;
@@ -28,8 +30,15 @@ namespace ToyDX
 			auto R = DirectX::XMMatrixRotationRollPitchYaw(DirectX::XMVectorGetY(vRotation), DirectX::XMVectorGetX(vRotation), DirectX::XMVectorGetZ(vRotation));
 			auto S = DirectX::XMMatrixScalingFromVector(vScale);
 
+			// Assuming column-major matrices
 			return T * R * S;
 		}
+	};
+
+	struct SubMeshes
+	{
+		std::vector<int> FirstVertexPosition;
+		std::vector<int> FirstIndexPosition;
 	};
 
 	class Mesh
@@ -40,7 +49,34 @@ namespace ToyDX
 		void Create();
 		void CreateCube();
 		void CreateTriangle();
-		void Create(BasicVertex* a_Vertices, size_t ul_NumVertices, uint16_t* a_Indices, size_t ul_NumIndices);
+		void CreateFromFile(const char* sz_Filename);
+
+	public:
+		template <typename T>
+		void Create(T* a_Vertices, size_t ul_NumVertices, uint16_t* a_Indices, size_t ul_NumIndices, D3D12_INPUT_LAYOUT_DESC* inputLayout)
+		{
+			m_InputLayout = inputLayout;
+
+			m_ulNumIndices = ul_NumIndices;
+			m_ulNumVertices = ul_NumVertices;
+
+			const UINT64 ui64_VertexBufferSizeInBytes = ul_NumVertices * sizeof(T);
+			const UINT64 ui64_IndexBufferSizeInBytes = ul_NumIndices * sizeof(uint16_t);
+
+			p_VertexBufferGPU.Reset();
+			p_IndexBufferGPU.Reset();
+
+			// Create the vertex buffer and a view to it
+			p_VertexBufferGPU = DX12RenderingPipeline::CreateDefaultBuffer(a_Vertices, ui64_VertexBufferSizeInBytes, p_VertexBufferCPU, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+			p_IndexBufferGPU = DX12RenderingPipeline::CreateDefaultBuffer(a_Indices, ui64_IndexBufferSizeInBytes, p_IndexBufferCPU, D3D12_RESOURCE_STATE_INDEX_BUFFER);
+
+			// Create buffer views
+			m_VertexBufferView = DX12RenderingPipeline::CreateVertexBufferView(p_VertexBufferGPU, ui64_VertexBufferSizeInBytes, sizeof(T));
+			m_IndexBufferView = DX12RenderingPipeline::CreateIndexBufferView(p_IndexBufferGPU, ui64_IndexBufferSizeInBytes, DXGI_FORMAT_R16_UINT);
+
+			// Init transform
+			m_Transform.ComputeWorldMatrix();
+		}
 
 		size_t IndexCount() { return m_ulNumIndices; }
 		size_t NumVertices() { return m_ulNumVertices; }

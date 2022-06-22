@@ -1,8 +1,7 @@
 #include "pch.h"
 #include "TDXMesh.h"
 
-#include "DX12Geometry.h"
-#include "DX12RenderingPipeline.h"
+#include "MeshLoader.h"
 
 namespace ToyDX
 {
@@ -23,7 +22,7 @@ namespace ToyDX
 		};
 
 		// Create GPU resources
-		Create(a_Vertices, _countof(a_Vertices), a_Indices, _countof(a_Indices));
+		Create<BasicVertex>(a_Vertices, _countof(a_Vertices), a_Indices, _countof(a_Indices), &BasicVertexInputLayoutDesc);
 	}
 
 	void Mesh::CreateCube()
@@ -62,7 +61,7 @@ namespace ToyDX
 			4, 3, 7
 		};
 
-		Create(a_Vertices, _countof(a_Vertices), a_Indices, _countof(a_Indices));
+		Create<BasicVertex>(a_Vertices, _countof(a_Vertices), a_Indices, _countof(a_Indices), &BasicVertexInputLayoutDesc);
 	}
 
 	void Mesh::CreateTriangle()
@@ -79,33 +78,34 @@ namespace ToyDX
 			0, 1, 2
 		};
 
-		Create(a_Vertices, _countof(a_Vertices), a_Indices, _countof(a_Indices));
+		Create<BasicVertex>(a_Vertices, _countof(a_Vertices), a_Indices, _countof(a_Indices), &BasicVertexInputLayoutDesc);
 	}
 
-	void Mesh::Create(BasicVertex* a_Vertices, size_t ul_NumVertices, uint16_t* a_Indices, size_t ul_NumIndices)
+	void Mesh::CreateFromFile(const char* sz_Filename)
 	{
-		m_InputLayout = &BasicVertexInputLayoutDesc;
+		const char* ext = strrchr(sz_Filename, '.');
 
-		m_ulNumIndices   = ul_NumIndices;
-		m_ulNumVertices = ul_NumVertices;
+		if (!ext)
+		{
+			return;
+		}
 
-		const UINT64 ui64_VertexBufferSizeInBytes = ul_NumVertices * sizeof(BasicVertex);
-		const UINT64 ui64_IndexBufferSizeInBytes  = ul_NumIndices  * sizeof(uint16_t);
+		ext = ext + 1;
 
-		p_VertexBufferGPU.Reset();
-		p_IndexBufferGPU.Reset();
+		if (strcmp(ext, "gltf") == 0 || strcmp(ext, "glb") == 0)
+		{
+			std::vector<Vertex>   vertices;
+			std::vector<uint16_t> indices;
 
-		// Create the vertex buffer and a view to it
-		p_VertexBufferGPU = DX12RenderingPipeline::CreateDefaultBuffer(a_Vertices, ui64_VertexBufferSizeInBytes, p_VertexBufferCPU, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-		p_IndexBufferGPU = DX12RenderingPipeline::CreateDefaultBuffer(a_Indices, ui64_IndexBufferSizeInBytes, p_IndexBufferCPU, D3D12_RESOURCE_STATE_INDEX_BUFFER);
+			DirectX::XMFLOAT4X4 worldMatrix;
+			MeshLoader::LoadGltf(sz_Filename, vertices, indices, worldMatrix);
+			m_Transform.WorldMatrix = DirectX::XMLoadFloat4x4(&worldMatrix);
 
-		// Create buffer views
-		m_VertexBufferView = DX12RenderingPipeline::CreateVertexBufferView(p_VertexBufferGPU, ui64_VertexBufferSizeInBytes, sizeof(BasicVertex));
-		m_IndexBufferView = DX12RenderingPipeline::CreateIndexBufferView(p_IndexBufferGPU, ui64_IndexBufferSizeInBytes, DXGI_FORMAT_R16_UINT);
-
-		// Init transform
-		m_Transform.ComputeWorldMatrix();
+			Create<Vertex>(vertices.data(), vertices.size(), indices.data(), indices.size(), &VertexInputLayoutDesc);
+		}
 	}
+
+
 
 	void Mesh::Scale(DirectX::XMVECTOR vScale)
 	{
