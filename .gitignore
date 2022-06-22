@@ -5,3 +5,5 @@
 
 #Project specific
 build
+obj
+bin
