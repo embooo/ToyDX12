@@ -459,6 +459,9 @@ ComPtr<ID3D12PipelineState> DX12RenderingPipeline::CreatePipelineStateObject(
 	DXGI_FORMAT					  e_DsvFormat,
 	D3D12_PRIMITIVE_TOPOLOGY_TYPE st_PrimitiveType)
 {
+	D3D12_DEPTH_STENCIL_DESC depthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+
+
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {};
 
 	pipelineStateDesc.InputLayout = st_InputLayout;
@@ -467,8 +470,7 @@ ComPtr<ID3D12PipelineState> DX12RenderingPipeline::CreatePipelineStateObject(
 	pipelineStateDesc.PS = { (BYTE*)st_PsByteCode->GetBufferPointer(), st_PsByteCode->GetBufferSize() };
 	pipelineStateDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	pipelineStateDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-	pipelineStateDesc.DepthStencilState.DepthEnable = false;
-	pipelineStateDesc.DepthStencilState.StencilEnable = false;
+	pipelineStateDesc.DepthStencilState = depthStencilState;
 	pipelineStateDesc.SampleMask = UINT_MAX;
 	pipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	pipelineStateDesc.NumRenderTargets = 1;
