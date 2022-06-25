@@ -24,6 +24,7 @@ struct VSInput
 struct VSOutput
 {
     float4 PosCS : SV_POSITION;
+    float4 PosWS : POSITION;
     float3 NormalWS : NORMAL;
 };
 
@@ -34,6 +35,7 @@ VSOutput main(VSInput input)
 
     output.PosCS = mul(float4(input.Pos, 1.0), wvp);
     output.NormalWS = mul(float4(input.NormalOS, 0.0), gWorld);
-    
+    output.PosWS =  mul(float4(input.Pos, 1.0), gWorld);
+
     return output;
 }
