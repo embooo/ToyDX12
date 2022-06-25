@@ -51,8 +51,9 @@ public:
 	int CurrentBackBufferIndex() const { return m_iCurrentBackBuffer; };
 	void SetCurrentBackBufferIndex(int index) { assert(index >= 0 && index < s_NumSwapChainBuffers); m_iCurrentBackBuffer = index; };
 	IDXGISwapChain* GetSwapChain() const { return mp_SwapChain.Get(); }
+	D3D12_CLEAR_VALUE DSClearValues;
+	D3D12_CLEAR_VALUE RTClearValues;
 
-	const D3D12_CLEAR_VALUE& GetClearValues() const { return m_ClearValues; }
 
 	// Creates a default buffer in the GPU default heap by using an upload buffer as an intermediate CPU accessible buffer
 	static ComPtr<ID3D12Resource> CreateDefaultBuffer(const void* pData, UINT64 ui64_SizeInBytes, Microsoft::WRL::ComPtr<ID3D12Resource>& p_UploadBuffer, D3D12_RESOURCE_STATES e_ResourceState);
@@ -99,7 +100,6 @@ public:
 	ComPtr<ID3D12Resource> mp_SwapChainBuffers[s_NumSwapChainBuffers];
 	CD3DX12_CPU_DESCRIPTOR_HANDLE m_SwapChainRTViews[s_NumSwapChainBuffers];
 
-	D3D12_CLEAR_VALUE m_ClearValues;
 
 	int  m_iCurrentBackBuffer = 0;
 	bool m_bUse4xMsaa = false;

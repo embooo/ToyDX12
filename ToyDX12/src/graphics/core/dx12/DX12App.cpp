@@ -23,7 +23,7 @@ bool DX12App::Initialize()
 bool DX12App::InitWindow(HINSTANCE hInstance, int nCmdShow)
 {
     // Initialize Window
-	mp_Window = std::make_unique<Win32Window>(800, 800, L"ToyDX12");
+	mp_Window = std::make_unique<Win32Window>(1280, 720, L"ToyDX12");
 	mp_Window->Init(hInstance, nCmdShow);
     mp_Window->SetAppHandle(this);
 

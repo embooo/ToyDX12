@@ -60,7 +60,7 @@ namespace ToyDX
 	{
 		m_Pos = XMVectorMultiplyAdd(XMVectorReplicate(f_TranslateIncrement * deltaTime), v_Axis, m_Pos);
 
-		LOG_WARN("({0}, {1}, {2}), dt = {3}", XMVectorGetX(m_Pos), XMVectorGetY(m_Pos), XMVectorGetZ(m_Pos), deltaTime);
+		//LOG_WARN("({0}, {1}, {2}), dt = {3}", XMVectorGetX(m_Pos), XMVectorGetY(m_Pos), XMVectorGetZ(m_Pos), deltaTime);
 
 	}
 

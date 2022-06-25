@@ -163,6 +163,14 @@ void DX12RenderingPipeline::CreateSwapchain(HWND hWnd,  UINT ui_Width, UINT ui_H
 	// Choose the appropriate display mode when switching to Fullscreen mode 
 	st_SwapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
+
+	// Clear values
+	RTClearValues.Format = e_Format;
+	RTClearValues.Color[0] = 0.27f;
+	RTClearValues.Color[1] = 0.27f;
+	RTClearValues.Color[2] = 0.27f;
+	RTClearValues.Color[3] = 1.0f;
+
 	//-----------------------------------------------------------------------
 	// Creation
 	//-----------------------------------------------------------------------
@@ -241,14 +249,13 @@ void DX12RenderingPipeline::CreateDepthStencil(UINT ui_Width, UINT ui_Height, UI
 	depthStencilDesc.Flags			     = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 	
 	// Optimized clear values for clear calls
-	m_ClearValues = {};
-	m_ClearValues.Format			   = e_Format;
-	m_ClearValues.DepthStencil.Depth   = 1.0f;
-	m_ClearValues.DepthStencil.Stencil = 0;
-	m_ClearValues.Color[0] = 0.1f;
-	m_ClearValues.Color[1] = 0.1f;
-	m_ClearValues.Color[2] = 0.1f;
-	m_ClearValues.Color[3] = 1.0f;
+	DSClearValues.Format			   = e_Format;
+	DSClearValues.DepthStencil.Depth   = 1.0f;
+	DSClearValues.DepthStencil.Stencil = 0;
+	//ClearValues.Color[0] = 0.1f;
+	//ClearValues.Color[1] = 0.1f;
+	//ClearValues.Color[2] = 0.1f;
+	//ClearValues.Color[3] = 1.0f;
 
 	// Heap that the resource will be commited to
 	D3D12_HEAP_PROPERTIES heapProperties = {};
@@ -260,7 +267,7 @@ void DX12RenderingPipeline::CreateDepthStencil(UINT ui_Width, UINT ui_Height, UI
 	//-----------------------------------------------------------------------
 	
 	// Create Depth-Stencil resource
-	ThrowIfFailed(s_TDXDevice->GetDevice().CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &depthStencilDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &m_ClearValues, IID_PPV_ARGS(mp_DepthStencil.GetAddressOf())));
+	ThrowIfFailed(s_TDXDevice->GetDevice().CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &depthStencilDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &DSClearValues, IID_PPV_ARGS(mp_DepthStencil.GetAddressOf())));
 	mp_DepthStencil->SetName(L"Depth-Stencil Resource");
 
 	// Create Depth-Stencil View

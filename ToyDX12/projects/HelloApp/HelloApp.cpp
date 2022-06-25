@@ -86,13 +86,13 @@ void HelloApp::Draw(double deltaTime)
 	rst_CommandList.RSSetScissorRects(1, &mp_DX12RenderingPipeline->GetScissorRect());
 
 	// Clear the back buffer and depth buffer.
-	rst_CommandList.ClearRenderTargetView(backBufferView, mp_DX12RenderingPipeline->GetClearValues().Color, 0, nullptr);
+	rst_CommandList.ClearRenderTargetView(backBufferView, mp_DX12RenderingPipeline->RTClearValues.Color, 0, nullptr);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE depthStencilView = mp_DX12RenderingPipeline->GetDepthStencilView();
 
 	rst_CommandList.ClearDepthStencilView(depthStencilView, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
-		1.0,
-		0,
+		mp_DX12RenderingPipeline->DSClearValues.DepthStencil.Depth,
+		mp_DX12RenderingPipeline->DSClearValues.DepthStencil.Stencil,
 		0, nullptr); // Clear entire render target
 
 	// Specify the buffers we are going to render to.
