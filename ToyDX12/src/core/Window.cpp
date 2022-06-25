@@ -164,6 +164,10 @@ LRESULT Win32Window::WndProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         OnResize(lParam);
         return 0;
 
+    case WM_SIZE:
+        OnResize(wParam);
+        return 0;
+
     case WM_ENTERSIZEMOVE: // User starts Resizing or moving window
         m_AppHandle->bIsPaused = true;
         return 0;
@@ -191,22 +195,38 @@ LRESULT Win32Window::WndProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 void Win32Window::OnResize(LPARAM lParam)
 {
-    RECT rect = {};
     
-    if (GetClientRect(s_HWND, &rect))
-    {
-        m_Width  = rect.right;
-        m_Height = rect.bottom;
-
-        m_fAspectRatio = (float)m_Width / m_Height;
-    }
+    UpdateWindowSize();
 
     bIsResizing = false;
 
     // Propagate
-    m_AppHandle->OnResize(lParam);
+    if (m_AppHandle)
+    {
+        m_AppHandle->OnResize(lParam);
+    }
 
     LOG_INFO("Event : Window resize (AR={0}): {1} {2}", m_fAspectRatio, m_Width, m_Height);
+}
+
+void Win32Window::OnResize(WPARAM wParam)
+{
+    switch (wParam)
+    {
+    case SIZE_MINIMIZED:
+        return;
+    default:
+        if (m_AppHandle && wParam)
+        {
+            UpdateWindowSize();
+
+            m_AppHandle->OnResize(wParam);
+
+            LOG_INFO("Event : Window resize with buttons (AR={0}): {1} {2}", m_fAspectRatio, m_Width, m_Height);
+        }
+    }
+
+
 }
 
 void Win32Window::OnMouseDown(LPARAM lParam)
@@ -258,5 +278,18 @@ int Win32Window::Terminate()
     else
     {
         return 0;
+    }
+}
+
+void Win32Window::UpdateWindowSize()
+{
+    RECT rect = {};
+
+    if (GetClientRect(s_HWND, &rect))
+    {
+        m_Width = rect.right;
+        m_Height = rect.bottom;
+
+        m_fAspectRatio = (float)m_Width / m_Height;
     }
 }

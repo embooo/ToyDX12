@@ -48,9 +48,11 @@ public:
 	int Terminate();
 
 	float GetAspectRatio() { return m_fAspectRatio; }
+	void UpdateWindowSize();
 
 	// Event handlers
-	void OnResize(LPARAM lParam);
+	void OnResize(LPARAM lParam); // User is resizing the window
+	void OnResize(WPARAM wParam); // User clicked on a resizing button (maximize/minimize)
 	void OnMouseUp(LPARAM lParam);
 	void OnMouseDown(LPARAM lParam);
 	void OnMouseMove(WPARAM buttonState, LPARAM lParam);

@@ -29,6 +29,7 @@ public:
 
 	// Event handlers
 	virtual void OnResize(LPARAM lParam);
+	virtual void OnResize(WPARAM wParam);
 	virtual void OnMouseClick(WPARAM buttonState, int xPos, int yPos);
 	virtual void OnMouseMove(WPARAM buttonState, int xPos, int yPos);
 	virtual void OnMouseUp(int xPos, int yPos);

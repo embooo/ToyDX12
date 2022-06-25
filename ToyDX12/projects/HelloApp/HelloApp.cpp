@@ -129,9 +129,12 @@ void HelloApp::Draw(double deltaTime)
 void HelloApp::OnResize(LPARAM lParam)
 {
 	m_Camera.SetFrustum({ .fAspectRatio = GetWindowAspectRatio() });
-	m_Camera.UpdateProjMatrix();
 }
 
+void HelloApp::OnResize(WPARAM wParam)
+{
+	m_Camera.SetFrustum({ .fAspectRatio = GetWindowAspectRatio() });
+}
 
 void HelloApp::OnMouseMove(WPARAM buttonState, int xPos, int yPos)
 {

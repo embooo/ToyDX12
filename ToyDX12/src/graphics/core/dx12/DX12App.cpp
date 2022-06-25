@@ -105,6 +105,11 @@ void DX12App::OnResize(LPARAM lParam)
    
 }
 
+void DX12App::OnResize(WPARAM wParam)
+{
+
+}
+
 void DX12App::OnMouseClick(WPARAM buttonState, int xPos, int yPos)
 {
 }
