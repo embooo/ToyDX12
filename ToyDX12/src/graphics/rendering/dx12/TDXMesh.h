@@ -4,6 +4,7 @@
 #include "MathUtil.h"
 #include "DX12RenderingPipeline.h"
 #include "DX12Geometry.h"
+#include "MeshLoader.h"
 
 struct D3D12_INDEX_BUFFER_VIEW;
 struct D3D12_VERTEX_BUFFER_VIEW;
@@ -13,11 +14,14 @@ namespace ToyDX
 {
 	struct Transform
 	{
+		Transform()
+			: WorldMatrix(DirectX::XMMatrixIdentity())
+		{}
 		DirectX::XMVECTOR Translation = {0.0f, 0.0f, 0.0f};
 		DirectX::XMVECTOR Rotation	  = {0.0f, 0.0f, 0.0f}; // Pitch, Roll, Yaw 
 		DirectX::XMVECTOR Scale		  = {1.0f, 1.0f, 1.0f};
 
-		DirectX::XMMATRIX WorldMatrix = DirectX::XMMatrixIdentity();
+		DirectX::XMMATRIX WorldMatrix;
 
 		void ComputeWorldMatrix()
 		{
@@ -39,6 +43,12 @@ namespace ToyDX
 	{
 		std::vector<int> FirstVertexPosition;
 		std::vector<int> FirstIndexPosition;
+	};
+
+	enum class MeshFormat
+	{
+		NONE, 
+		GLTF
 	};
 
 	class Mesh
@@ -92,12 +102,19 @@ namespace ToyDX
 		const Transform& GetTransform() const { return m_Transform; };
 		const DirectX::XMMATRIX& GetWorldMatrix() const { return m_Transform.WorldMatrix; };
 
+		GltfMesh gltfMesh;
+
 		~Mesh() { LOG_WARN("Mesh::~Mesh()"); };
 	protected:
 		// Geometric properties
 		Transform m_Transform;
-	protected:
 
+		// File format
+		MeshFormat fileFormat = MeshFormat::NONE;
+
+
+
+	protected:
 		size_t m_ulNumIndices  = 0;
 		size_t m_ulNumVertices = 0;
 

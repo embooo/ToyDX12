@@ -94,15 +94,17 @@ namespace ToyDX
 
 		if (strcmp(ext, "gltf") == 0 || strcmp(ext, "glb") == 0)
 		{
-			std::vector<Vertex>   vertices;
-			std::vector<uint16_t> indices;
+			DirectX::XMFLOAT4X4 worldMatrix = MathUtil::Float4x4Identity();
+			MeshLoader::LoadGltf(sz_Filename, gltfMesh);
 
-			DirectX::XMFLOAT4X4 worldMatrix;
-			MeshLoader::LoadGltf(sz_Filename, vertices, indices, worldMatrix);
-			m_Transform.WorldMatrix = DirectX::XMLoadFloat4x4(&worldMatrix);
+			//m_Transform.WorldMatrix = gltfMesh.worldMatrix;
 
-			Create<Vertex>(vertices.data(), vertices.size(), indices.data(), indices.size(), &VertexInputLayoutDesc);
+			Create<Vertex>(gltfMesh.vertices.data(), gltfMesh.vertices.size(), gltfMesh.indices.data(), gltfMesh.indices.size(), &VertexInputLayoutDesc);
+
+			Scale({ 0.1, 0.1, 0.1 });
 		}
+
+
 	}
 
 
