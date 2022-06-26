@@ -6,6 +6,7 @@
 #include "ToyDXUploadBuffer.h"
 #include "DX12RenderingPipeline.h"
 #include "TDXMesh.h"
+#include "ToyDXCamera.h"
 
 void ToyDX::Renderer::Initialize()
 {
@@ -18,13 +19,16 @@ void ToyDX::Renderer::Initialize()
 
 	// Create a mesh
 	m_Mesh = std::make_shared<ToyDX::Mesh>();
-	m_Mesh->CreateFromFile("./data/models/suzanne/scene.gltf");
-	m_Mesh->Scale({ 1, 1, 1 });
+	//m_Mesh->CreateFromFile("./data/models/suzanne/scene.gltf");
+	//m_Mesh->CreateFromFile("./data/models/unity_adam_head/scene.gltf");
+	m_Mesh->CreateFromFile("./data/models/sponza_pbr/scene.glb");
+	//m_Mesh->CreateFromFile("./data/models/spheres/scene.gltf");
+	//m_Mesh->CreateFromFile("./data/models/chandelier/scene.gltf");
 
 	LoadShaders();
 	CreateConstantBuffer();
 	CreateRootSignature();
-	SetRasterizerState();
+	SetRasterizerState(true, true);
 	CreatePipelineStateObject();
 
 	ThrowIfFailed(rst_CommandList.Close());
@@ -39,16 +43,19 @@ void ToyDX::Renderer::Render()
 	ID3D12GraphicsCommandList& rst_CommandList = DX12RenderingPipeline::GetCommandList();
 	ID3D12CommandQueue& rst_CommandQueue = DX12RenderingPipeline::GetCommandQueue();
 
-	int w = 2;
-	int h = 2;
+	// Update constant buffer
+	PerObjectData constantsBufferData;
+	DirectX::XMStoreFloat4x4(&constantsBufferData.gWorld, DirectX::XMMatrixTranspose(m_Mesh->GetWorldMatrix()));
+	DirectX::XMStoreFloat4x4(&constantsBufferData.gView,  DirectX::XMMatrixTranspose(m_CameraHandle->GetViewMatrix()));
+	DirectX::XMStoreFloat4x4(&constantsBufferData.gProj,  DirectX::XMMatrixTranspose(m_CameraHandle->GetProjMatrix()));
+	GetConstantBuffer()->CopyData(0, &constantsBufferData, sizeof(PerObjectData));
 
-	for (int x = 0; x < w; x++)
+	for (int i = 0; i < m_Mesh->gltfMesh.primitives.size(); i++)
 	{
-		for (int z = 0; z < h; z++)
-		{
-			rst_CommandList.DrawIndexedInstanced(m_Mesh->IndexCount(), 1, 0, 0, 0);
-		}
+		GltfPrimitive& p = m_Mesh->gltfMesh.primitives[i];
+		rst_CommandList.DrawIndexedInstanced(p.NumIndices, 1, p.StartIndexLocation, p.BaseVertexLocation, 0);
 	}
+
 }
 
 void ToyDX::Renderer::CreateConstantBuffer()
@@ -135,8 +142,8 @@ void ToyDX::Renderer::BindResources()
 void ToyDX::Renderer::SetRasterizerState(bool bWireframe, bool bBackFaceCulling)
 {
 	m_RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	//m_RasterizerState.FillMode = bWireframe ? D3D12_FILL_MODE_WIREFRAME : D3D12_FILL_MODE_SOLID;
-	//m_RasterizerState.CullMode = bBackFaceCulling ? D3D12_CULL_MODE_BACK : D3D12_CULL_MODE_NONE;
+	m_RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;// bWireframe ? D3D12_FILL_MODE_WIREFRAME : D3D12_FILL_MODE_SOLID;
+	m_RasterizerState.CullMode = bBackFaceCulling ? D3D12_CULL_MODE_BACK : D3D12_CULL_MODE_NONE;
 
 	// By default : Front face is clockwise
 }

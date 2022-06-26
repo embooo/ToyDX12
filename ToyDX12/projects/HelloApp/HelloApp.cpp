@@ -30,14 +30,15 @@ void HelloApp::Init()
 		return;
 	}
 
+	LOG_INFO("{0}::Init() Hello !", m_DebugName);
+
 	// Camera initialization
 	m_Camera.Init({ .fAspectRatio = DX12App::GetWindowAspectRatio(), .fFovY = DirectX::XMConvertToRadians(45.0f), .fNearZ = 1.0f,.fFarZ = 1000.0f,});
 	
 	// Renderer
 	m_Renderer = std::make_unique<ToyDX::Renderer>();
 	m_Renderer->Initialize();
-	
-	LOG_INFO("{0}::Init() Hello !", m_DebugName);
+	m_Renderer->SetCameraHandle(&m_Camera);
 }
 
 //*********************************************************
@@ -46,13 +47,6 @@ void HelloApp::Update(double deltaTime)
 {
 	m_DeltaTime = deltaTime;
 	UpdateCamera(m_DeltaTime);
-
-	// Update constant buffer storing WVP matrix
-	PerObjectData constantsBufferData;
-	DirectX::XMStoreFloat4x4(&constantsBufferData.gWorld, XMMatrixTranspose(m_Renderer->m_Mesh->GetWorldMatrix()));
-	DirectX::XMStoreFloat4x4(&constantsBufferData.gView,  XMMatrixTranspose(m_Camera.GetViewMatrix()));
-	DirectX::XMStoreFloat4x4(&constantsBufferData.gProj,  XMMatrixTranspose(m_Camera.GetProjMatrix()));
-	m_Renderer->GetConstantBuffer()->CopyData(0, &constantsBufferData, sizeof(PerObjectData));
 }
 
 //*********************************************************

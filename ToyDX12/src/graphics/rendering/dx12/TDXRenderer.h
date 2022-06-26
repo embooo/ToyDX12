@@ -8,6 +8,7 @@ namespace ToyDX
 	class Shader;
 	class UploadBuffer;
 	class Mesh;
+	class Camera;
 
 	class Renderer : public IRenderer
 	{
@@ -20,14 +21,15 @@ namespace ToyDX
 
 		void BindResources();
 
+		void SetCameraHandle(Camera* handle) { m_CameraHandle = handle; }
 		void SetRasterizerState(bool bWireframe = false, bool bBackFaceCulling = true);
 		void SetPipelineState(ID3D12PipelineState* p_Pso) { m_Pso = p_Pso; };
 		ID3D12PipelineState* GetPipelineState() { return m_Pso.Get(); };
 		UploadBuffer* GetConstantBuffer() { return m_ConstantBuffer.get(); };
 		void CreatePipelineStateObject();
-
+	public:
 		std::shared_ptr<Mesh> m_Mesh;
-
+		Camera* m_CameraHandle;
 	public:
 		
 		// TODO : Move to a more appropriate class
