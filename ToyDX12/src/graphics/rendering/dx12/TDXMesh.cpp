@@ -97,11 +97,9 @@ namespace ToyDX
 			DirectX::XMFLOAT4X4 worldMatrix = MathUtil::Float4x4Identity();
 			MeshLoader::LoadGltf(sz_Filename, gltfMesh);
 
-			//m_Transform.WorldMatrix = gltfMesh.worldMatrix;
+			m_Transform.WorldMatrix = gltfMesh.worldMatrix;
 
 			Create<Vertex>(gltfMesh.vertices.data(), gltfMesh.vertices.size(), gltfMesh.indices.data(), gltfMesh.indices.size(), &VertexInputLayoutDesc);
-
-			Scale({ 0.1, 0.1, 0.1 });
 		}
 
 
