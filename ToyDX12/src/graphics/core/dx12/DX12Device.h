@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IDevice.h"
+#include "dxgi1_6.h"
 
 using namespace Microsoft::WRL;
 

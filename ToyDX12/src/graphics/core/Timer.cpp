@@ -9,7 +9,7 @@ Timer::Timer()
 	__int64 perfCounterFrequency;
 	QueryPerformanceFrequency((LARGE_INTEGER*)&perfCounterFrequency);
 
-	m_SecondsPerCount = 1.0 / (double)perfCounterFrequency;
+	m_SecondsPerCount = 1 / (double)perfCounterFrequency;
 }
 
 double Timer::GetDeltaTime() const
@@ -63,7 +63,7 @@ void Timer::Reset()
 {
 	__int64 currTime;
 	QueryPerformanceCounter((LARGE_INTEGER*)&currTime);
-
+	
 	m_PrevTime = currTime;
 }
 
@@ -82,5 +82,4 @@ void Timer::Tick()
 	m_DeltaTimeInSeconds = (m_CurrTime - m_PrevTime) * m_SecondsPerCount;
 
 	m_PrevTime = m_CurrTime;
-
 }
