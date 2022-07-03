@@ -73,7 +73,6 @@ namespace ToyDX
 		
 		// Pitch 
 		{ 
-			
 			XMMATRIX R = XMMatrixRotationAxis(m_Right, XMConvertToRadians(fMouseDeltaY * deltaTime * m_fVerticalSensitivity));
 
 			m_Forward = XMVector3TransformNormal(m_Forward, R);

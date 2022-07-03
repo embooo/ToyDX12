@@ -70,6 +70,7 @@ namespace ToyDX
 		const Frustum& GetFrustum() { return m_stFrustum; }
 		DirectX::XMMATRIX& GetViewMatrix() { return m_ViewMatrix; }
 		DirectX::XMMATRIX& GetProjMatrix() { return m_ProjMatrix; }
+		DirectX::XMVECTOR& GetPosWS() { return m_Pos; }
 
 		// Setters
 		Camera& SetControlParameters(const ControlParams& st_ControlParams = {}, float fRadius = 5.0);
