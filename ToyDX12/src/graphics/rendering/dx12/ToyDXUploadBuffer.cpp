@@ -26,16 +26,7 @@ void ToyDX::UploadBuffer::Create(ID3D12Device* p_Device, UINT ui_NumElements, si
 {
 	if (bIsConstantBuffer)
 	{
-		// Constant buffers are updated once per frame
-		// Size must be a multiple of the minimum hardware allocation size (256 bytes)
-		if (sz_ElementSizeInBytes % 256 != 0)
-		{
-			// Round constant buffer size to the nearest multiple of 256
-			// Add 255 and mask the lower two bytes because they are not multiples of 256 (15 * 16^0 < 256 ; 15 * 16^1 < 256)
-			// Example with a constant buffer size of 300 : 300 + 255 = 555 (0x022B) 
-			// 0x022B & ~0x00FF = 0x022B & 0xFF00 = 0x0200 = 512 bytes
-			sz_ElementSizeInBytes = (sz_ElementSizeInBytes + 255) & ~255;
-		}
+		sz_ElementSizeInBytes = CalcConstantBufferSize(sz_ElementSizeInBytes);
 	}
 
 	m_bIsConstantBuffer = bIsConstantBuffer;
@@ -68,4 +59,22 @@ void ToyDX::UploadBuffer::Destroy()
 		m_UploadBuffer->Unmap(0, nullptr);
 		m_MappedData = nullptr;
 	}
+}
+
+size_t ToyDX::UploadBuffer::CalcConstantBufferSize(size_t ConstantBufferSizeCPU)
+{
+	size_t ConstantBufferSizeGPU = ConstantBufferSizeCPU;
+
+	// Constant buffers are updated once per frame
+	// Size must be a multiple of the minimum hardware allocation size (256 bytes)
+	if (ConstantBufferSizeGPU % 256 != 0)
+	{
+		// Round constant buffer size to the nearest multiple of 256
+		// Add 255 and mask the lower two bytes because they are not multiples of 256 (15 * 16^0 < 256 ; 15 * 16^1 < 256)
+		// Example with a constant buffer size of 300 : 300 + 255 = 555 (0x022B) 
+		// 0x022B & ~0x00FF = 0x022B & 0xFF00 = 0x0200 = 512 bytes
+		ConstantBufferSizeGPU = (ConstantBufferSizeGPU + 255) & ~255;
+	}
+
+	return ConstantBufferSizeGPU;
 }

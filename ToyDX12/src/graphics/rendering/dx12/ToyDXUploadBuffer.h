@@ -27,6 +27,8 @@ namespace ToyDX
 
 		~UploadBuffer() = default;
 
+		static size_t CalcConstantBufferSize(size_t ConstantBufferSizeCPU);
+
 	protected:
 		Microsoft::WRL::ComPtr<ID3D12Resource> m_UploadBuffer;
 		BYTE* m_MappedData;
