@@ -15,7 +15,7 @@ bool DX12App::Initialize()
 {
     InitWindow(m_hInstance, SW_SHOW); // Init a Win32 window
     InitRenderingPipeline(); // Init Direct3D
-    sp_Timer = std::make_unique<Timer>();
+    m_Timer = std::make_unique<Timer>();
 
     return true;
 }
@@ -60,7 +60,7 @@ int DX12App::Run()
 {
     MSG msg = {};
 
-    sp_Timer->Reset();
+    m_Timer->Reset();
 
     while (msg.message != WM_QUIT)
     {
@@ -72,7 +72,7 @@ int DX12App::Run()
         }
         else // Engine related updates/draws
         {
-            sp_Timer->Tick();
+            m_Timer->Tick();
 
             if (bIsPaused)
             {
@@ -80,9 +80,9 @@ int DX12App::Run()
             }
             else
             {
-                const double& dt = sp_Timer->GetDeltaTime();
-                Update(dt );
-                Draw(dt );
+                const double& dt = m_Timer->GetDeltaTime();
+                Update(m_Timer.get());
+                Draw(dt);
             }
 
         }

@@ -24,6 +24,7 @@ public:
 	// For example : code to init/update meshes, cameras, animations ...
 	virtual void Init() = 0; 
 	virtual void Update(double deltaTime) = 0;
+	virtual void Update(const Timer* const timer) = 0;
 	virtual void Draw(double deltaTime) = 0;
 	virtual void Terminate() = 0;
 
@@ -46,7 +47,7 @@ public:
 
 protected:
 	static DX12App* s_App;
-	std::unique_ptr<Timer> sp_Timer;
+	std::unique_ptr<Timer> m_Timer;
 	HINSTANCE m_hInstance;
 	std::unique_ptr<Win32Window> mp_Window;
 	std::unique_ptr<DX12RenderingPipeline> mp_DX12RenderingPipeline;
