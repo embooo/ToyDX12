@@ -8,57 +8,33 @@
 
 struct D3D12_INDEX_BUFFER_VIEW;
 struct D3D12_VERTEX_BUFFER_VIEW;
-class BasicVertex;
+struct BasicVertex;
+struct Primitive;
+
+struct Primitive
+{
+	size_t NumIndices;
+	size_t StartIndexLocation;	// The location of the first index read by the GPU from the index buffer. == Number of indices before the first index of this primitive
+	size_t BaseVertexLocation;  // A value added to each index before reading a vertex from the vertex buffer == Number of vertices before the first vertex of this primitive
+};
+
+struct MeshData
+{
+	std::vector<Vertex>    Vertices;
+	std::vector<uint16_t>  Indices;
+	std::vector<Primitive> Primitives;
+
+	Primitive WholeMesh;
+};
+
 
 namespace ToyDX
 {
-	struct Transform
-	{
-		Transform()
-			: WorldMatrix(DirectX::XMMatrixIdentity())
-		{}
-		DirectX::XMVECTOR Translation = {0.0f, 0.0f, 0.0f};
-		DirectX::XMVECTOR Rotation	  = {0.0f, 0.0f, 0.0f}; // Pitch, Roll, Yaw 
-		DirectX::XMVECTOR Scale		  = {1.0f, 1.0f, 1.0f};
-
-		DirectX::XMMATRIX WorldMatrix;
-
-		void ComputeWorldMatrix()
-		{
-			WorldMatrix = ComputeWorldMatrix(Translation, Rotation, Scale);
-		}
-
-		static DirectX::XMMATRIX ComputeWorldMatrix(DirectX::XMVECTOR vTranslation, DirectX::XMVECTOR vRotation, DirectX::XMVECTOR vScale)
-		{
-			auto T = DirectX::XMMatrixTranslationFromVector(vTranslation);
-			auto R = DirectX::XMMatrixRotationRollPitchYaw(DirectX::XMVectorGetY(vRotation), DirectX::XMVectorGetX(vRotation), DirectX::XMVectorGetZ(vRotation));
-			auto S = DirectX::XMMatrixScalingFromVector(vScale);
-
-			// Assuming column-major matrices
-			return T * R * S;
-		}
-	};
-
-	struct SubMeshes
-	{
-		std::vector<int> FirstVertexPosition;
-		std::vector<int> FirstIndexPosition;
-	};
-
-	enum class MeshFormat
-	{
-		NONE, 
-		GLTF
-	};
-
 	class Mesh
 	{
 	public:
 		Mesh() = default;
 
-		void Create();
-		void CreateCube();
-		void CreateTriangle();
 		void CreateFromFile(const char* sz_Filename);
 
 	public:
@@ -67,11 +43,11 @@ namespace ToyDX
 		{
 			m_InputLayout = inputLayout;
 
-			m_ulNumIndices = ul_NumIndices;
-			m_ulNumVertices = ul_NumVertices;
+			m_IndexCount  = ul_NumIndices;
+			m_VertexCount = ul_NumVertices;
 
 			const UINT64 ui64_VertexBufferSizeInBytes = ul_NumVertices * sizeof(T);
-			const UINT64 ui64_IndexBufferSizeInBytes = ul_NumIndices * sizeof(uint16_t);
+			const UINT64 ui64_IndexBufferSizeInBytes  = ul_NumIndices * sizeof(uint16_t);
 
 			p_VertexBufferGPU.Reset();
 			p_IndexBufferGPU.Reset();
@@ -83,40 +59,23 @@ namespace ToyDX
 			// Create buffer views
 			m_VertexBufferView = DX12RenderingPipeline::CreateVertexBufferView(p_VertexBufferGPU, ui64_VertexBufferSizeInBytes, sizeof(T));
 			m_IndexBufferView = DX12RenderingPipeline::CreateIndexBufferView(p_IndexBufferGPU, ui64_IndexBufferSizeInBytes, DXGI_FORMAT_R16_UINT);
-
-			// Init transform
-			m_Transform.ComputeWorldMatrix();
 		}
 
-		size_t IndexCount() { return m_ulNumIndices; }
-		size_t NumVertices() { return m_ulNumVertices; }
+		size_t IndexCount() { return m_IndexCount; }
+		size_t VertexCount() { return m_VertexCount; }
 
 		const D3D12_INDEX_BUFFER_VIEW& GetIndexBufferView() const { return m_IndexBufferView; }
 		const D3D12_VERTEX_BUFFER_VIEW& GetVertexBufferView()  const { return m_VertexBufferView; }
 		D3D12_INPUT_LAYOUT_DESC* GetInputLayout() { return m_InputLayout; }
 
-		void Scale(DirectX::XMVECTOR vScale);
-		void Translate(DirectX::XMVECTOR vTranslate);
-		void SetPosition(DirectX::XMVECTOR vPos);
-
-		const Transform& GetTransform() const { return m_Transform; };
-		const DirectX::XMMATRIX& GetWorldMatrix() const { return m_Transform.WorldMatrix; };
-
-		GltfMesh gltfMesh;
+		MeshData Data;
 
 		~Mesh() { LOG_WARN("Mesh::~Mesh()"); };
 	protected:
-		// Geometric properties
-		Transform m_Transform;
-
-		// File format
-		MeshFormat fileFormat = MeshFormat::NONE;
 
 
-
-	protected:
-		size_t m_ulNumIndices  = 0;
-		size_t m_ulNumVertices = 0;
+		size_t m_IndexCount = 0;
+		size_t m_VertexCount = 0;
 
 		// Default buffers
 		Microsoft::WRL::ComPtr<ID3D12Resource> p_VertexBufferGPU = nullptr;
