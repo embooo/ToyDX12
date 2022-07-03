@@ -38,84 +38,33 @@ void HelloApp::Init()
 	// Renderer
 	m_Renderer = std::make_unique<ToyDX::Renderer>();
 	m_Renderer->Initialize();
+	m_Renderer->SetRenderingPipelineHandle(mp_DX12RenderingPipeline.get());
 	m_Renderer->SetCameraHandle(&m_Camera);
+	m_Renderer->SetTimerHandle(m_Timer.get());
+}
+
+void HelloApp::Update(double deltaTime)
+{
 }
 
 //*********************************************************
 
-void HelloApp::Update(double deltaTime)
+void HelloApp::Update(const Timer* const timer)
 {
-	m_DeltaTime = deltaTime;
+	m_DeltaTime = timer->GetDeltaTime();
+
 	UpdateCamera(m_DeltaTime);
+
+	m_Renderer->UpdateFrameResource();
 }
 
 //*********************************************************
 
 void HelloApp::Draw(double deltaTime)
 {
-	ID3D12CommandAllocator& rst_CommandAllocator = DX12RenderingPipeline::GetCommandAllocator();
-	ID3D12GraphicsCommandList& rst_CommandList = DX12RenderingPipeline::GetCommandList();
-	ID3D12CommandQueue& rst_CommandQueue = DX12RenderingPipeline::GetCommandQueue();
-
-	// Reuse the memory associated with command recording.
-	// We can only reset when the associated command lists have finished
-	// execution on the GPU.
-	ThrowIfFailed(rst_CommandAllocator.Reset());
-	
-	// A command list can be reset after it has been added to the
-	// command queue via ExecuteCommandList. Reusing the command list reuses memory.
-	ThrowIfFailed(rst_CommandList.Reset(&rst_CommandAllocator, m_Renderer->GetPipelineState()));
-
-	// Indicate a state transition on the resource usage.
-	ID3D12Resource* backBufferResource = mp_DX12RenderingPipeline->GetCurrentBackBuffer();
-	ID3D12Resource* depthStencilResource = mp_DX12RenderingPipeline->GetDepthStencil();
-	D3D12_CPU_DESCRIPTOR_HANDLE backBufferView = mp_DX12RenderingPipeline->GetCurrentBackBufferView();
-
-	CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBufferResource, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	rst_CommandList.ResourceBarrier(1, &barrier);
-
-	// Set the viewport and scissor rect. This needs to be reset
-	// whenever the command list is reset.
-	rst_CommandList.RSSetViewports(1, &mp_DX12RenderingPipeline->GetViewport());
-	rst_CommandList.RSSetScissorRects(1, &mp_DX12RenderingPipeline->GetScissorRect());
-
-	// Clear the back buffer and depth buffer.
-	rst_CommandList.ClearRenderTargetView(backBufferView, mp_DX12RenderingPipeline->RTClearValues.Color, 0, nullptr);
-
-	D3D12_CPU_DESCRIPTOR_HANDLE depthStencilView = mp_DX12RenderingPipeline->GetDepthStencilView();
-
-	rst_CommandList.ClearDepthStencilView(depthStencilView, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
-		mp_DX12RenderingPipeline->DSClearValues.DepthStencil.Depth,
-		mp_DX12RenderingPipeline->DSClearValues.DepthStencil.Stencil,
-		0, nullptr); // Clear entire render target
-
-	// Specify the buffers we are going to render to.
-	rst_CommandList.OMSetRenderTargets(1, &backBufferView, true, &depthStencilView);
-
 	{
-		m_Renderer->BindResources();
 		m_Renderer->Render();
 	}
-
-	// Indicate a state transition on the resource usage.
-	barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBufferResource, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-	rst_CommandList.ResourceBarrier(1, &barrier);
-
-
-	// Stop recording commands
-	ThrowIfFailed(rst_CommandList.Close());
-
-	// Add command list to GPU command queue for execution
-	ID3D12CommandList* a_CommandLists[] = { &rst_CommandList };
-	rst_CommandQueue.ExecuteCommandLists(_countof(a_CommandLists), a_CommandLists);
-
-	// Present then swap front and back buffer
-	ThrowIfFailed(mp_DX12RenderingPipeline->GetSwapChain()->Present(0, 0)); // SyncInterval = 0  : V-Sync disabled
-	mp_DX12RenderingPipeline->SetCurrentBackBufferIndex((mp_DX12RenderingPipeline->CurrentBackBufferIndex() + 1) % mp_DX12RenderingPipeline->SwapChainBufferCount());
-
-	// Wait until frame commands are complete.
-	DX12RenderingPipeline::FlushCommandQueue();
-
 }
 
 //*********************************************************

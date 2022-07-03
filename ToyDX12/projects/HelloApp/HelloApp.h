@@ -19,8 +19,9 @@ public:
 
 	virtual void Init() override;
 	virtual void Update(double deltaTime) override;
+	virtual void Update(const Timer* const timer) override;
+	
 	virtual void Draw(double deltaTime) override;
-
 	virtual void Terminate() override;
 
 	// Event handlers
