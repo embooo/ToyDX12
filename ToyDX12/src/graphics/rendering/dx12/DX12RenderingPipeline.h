@@ -57,7 +57,7 @@ public:
 
 	// Creates a default buffer in the GPU default heap by using an upload buffer as an intermediate CPU accessible buffer
 	static ComPtr<ID3D12Resource> CreateDefaultBuffer(const void* pData, UINT64 ui64_SizeInBytes, Microsoft::WRL::ComPtr<ID3D12Resource>& p_UploadBuffer, D3D12_RESOURCE_STATES e_ResourceState);
-	static D3D12_VERTEX_BUFFER_VIEW CreateVertexBufferView(Microsoft::WRL::ComPtr<ID3D12Resource>& p_VertexBufferGPU, UINT ui_SizeInBytes, UINT ui_StrideInBytes);
+	static D3D12_VERTEX_BUFFER_VIEW CreateVertexBufferView(Microsoft::WRL::ComPtr<ID3D12Resource>& p_VertexBufferGPU, UINT64 ui_SizeInBytes, UINT64 ui_StrideInBytes);
 	static D3D12_INDEX_BUFFER_VIEW CreateIndexBufferView(Microsoft::WRL::ComPtr<ID3D12Resource>& p_IndexBufferGPU, UINT ui_SizeInBytes, DXGI_FORMAT e_Format = DXGI_FORMAT_R16_UINT);
 	static void CreateConstantBufferView(ID3D12DescriptorHeap* st_CbvHeap, D3D12_GPU_VIRTUAL_ADDRESS ui64_CbvAddress, UINT ui_SizeInBytes);
 
@@ -114,9 +114,9 @@ public:
 	CD3DX12_CPU_DESCRIPTOR_HANDLE m_DepthStencilView;
 	ToyDX::Resource mst_DepthStencil;
 
-	// Cached informations 
-	static DX12CachedValues& GetCachedValues() { return s_CachedValues; }
-	static DX12CachedValues s_CachedValues;
+	static UINT CBV_SRV_UAV_Size;
+	static UINT RTV_Size;
+	static UINT DSV_Size;
 };
 
 

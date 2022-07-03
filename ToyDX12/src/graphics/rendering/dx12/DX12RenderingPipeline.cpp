@@ -10,8 +10,11 @@ ComPtr<ID3D12Fence>					DX12RenderingPipeline::s_Fence;
 ComPtr<ID3D12GraphicsCommandList>	DX12RenderingPipeline::s_CommandList;
 ComPtr<ID3D12CommandQueue>			DX12RenderingPipeline::s_CommandQueue;
 ComPtr<ID3D12CommandAllocator>		DX12RenderingPipeline::s_CmdAllocator;
-DX12CachedValues					DX12RenderingPipeline::s_CachedValues;
 DXGI_SAMPLE_DESC					DX12RenderingPipeline::s_SampleDesc;
+
+UINT								DX12RenderingPipeline::CBV_SRV_UAV_Size;
+UINT								DX12RenderingPipeline::RTV_Size;
+UINT								DX12RenderingPipeline::DSV_Size;
 
 void DX12RenderingPipeline::Init()
 {
@@ -35,9 +38,9 @@ void DX12RenderingPipeline::Init(const Win32Window& p_Window)
 	mp_DSVDescriptorHeap = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
 
 	// Cache descriptor sizes for later usage
-	s_CachedValues.descriptorSizes.RTV = s_TDXDevice->GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	s_CachedValues.descriptorSizes.DSV = s_TDXDevice->GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-	s_CachedValues.descriptorSizes.CBV_SRV_UAV = s_TDXDevice->GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	RTV_Size			= s_TDXDevice->GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	DSV_Size			= s_TDXDevice->GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+	CBV_SRV_UAV_Size	= s_TDXDevice->GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	// Create the swap chain and depth stencil
 	CreateSwapchain(Win32Window::GetHWND(), p_Window.GetWidth(), p_Window.GetHeight());
@@ -202,7 +205,7 @@ void DX12RenderingPipeline::CreateSwapchain(HWND hWnd,  UINT ui_Width, UINT ui_H
 		m_SwapChainRTViews[i] = rtvHeapHandle;
 
 		// Offset to next descriptor
-		rtvHeapHandle.Offset(1, s_CachedValues.descriptorSizes.RTV);
+		rtvHeapHandle.Offset(1, RTV_Size);
 	}
 }
 
@@ -419,7 +422,7 @@ ComPtr<ID3D12Resource> DX12RenderingPipeline::CreateDefaultBuffer(const void* pD
 
 //*********************************************************
 
-D3D12_VERTEX_BUFFER_VIEW DX12RenderingPipeline::CreateVertexBufferView(Microsoft::WRL::ComPtr<ID3D12Resource>& p_VertexBufferGPU, UINT ui_SizeInBytes, UINT ui_StrideInBytes)
+D3D12_VERTEX_BUFFER_VIEW DX12RenderingPipeline::CreateVertexBufferView(Microsoft::WRL::ComPtr<ID3D12Resource>& p_VertexBufferGPU, UINT64 ui_SizeInBytes, UINT64 ui_StrideInBytes)
 {
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewDesc = {};
 	vertexBufferViewDesc.BufferLocation = p_VertexBufferGPU.Get()->GetGPUVirtualAddress();
@@ -475,7 +478,7 @@ ComPtr<ID3D12PipelineState> DX12RenderingPipeline::CreatePipelineStateObject(
 	pipelineStateDesc.pRootSignature = p_RootSignature;
 	pipelineStateDesc.VS = { (BYTE*)st_VsByteCode->GetBufferPointer(), st_VsByteCode->GetBufferSize() };
 	pipelineStateDesc.PS = { (BYTE*)st_PsByteCode->GetBufferPointer(), st_PsByteCode->GetBufferSize() };
-	pipelineStateDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	pipelineStateDesc.RasterizerState = st_RasterizerState;
 	pipelineStateDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	pipelineStateDesc.DepthStencilState = depthStencilState;
 	pipelineStateDesc.SampleMask = UINT_MAX;
@@ -484,7 +487,7 @@ ComPtr<ID3D12PipelineState> DX12RenderingPipeline::CreatePipelineStateObject(
 	pipelineStateDesc.RTVFormats[0] = a_RtvFormats[0];
 	pipelineStateDesc.DSVFormat  = e_DsvFormat;
 	pipelineStateDesc.SampleDesc = st_SampleDesc;
-
+	
 	//.StreamOutput = 0,
 	//.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT), // Default blend state for now
 	//.SampleMask = 0xFFFFFFFF,
