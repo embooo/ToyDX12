@@ -27,6 +27,13 @@ struct PerPassData
 	float gTotalTime;
 };
 
+struct MaterialConstants
+{
+	DirectX::XMFLOAT4 DiffuseFactor = { 1.0f, 1.0f, 1.0f, 1.0f };	// DiffuseAlbedo
+	DirectX::XMFLOAT3 SpecularFactor = { 0.01f, 0.01f, 0.01f };		// F0
+	float GlossinessFactor = 1 - 0.25f;								// 1 - Roughness
+};
+
 namespace ToyDX
 {
 	class Shader;
@@ -46,6 +53,7 @@ namespace ToyDX
 		void UpdateFrameResource();
 		void UpdatePerObjectCBs();
 		void UpdatePerPassCB();
+		void UpdateMaterialCBs();
 
 		void RenderOpaques(ID3D12GraphicsCommandList* cmdList, std::vector<Drawable*>& drawables);
 
@@ -68,13 +76,14 @@ namespace ToyDX
 		std::vector< std::unique_ptr<Drawable>> m_AllDrawables;
 		std::vector<Drawable*> m_OpaqueDrawables;
 		std::vector<std::unique_ptr<Mesh>> m_Meshes;
+		std::unordered_map <const char*, std::unique_ptr<Material>> m_Materials;
 		Camera* m_CameraHandle;
 		Timer* m_TimerHandle;
 
 	protected:
 		// TODO : Move to a more appropriate class
 		Microsoft::WRL::ComPtr<ID3D12RootSignature> m_RootSignature;
-		void CreateRootSignature();
+		void BuildRootSignature();
 		void CreateCbvHeap(UINT ui_NumDescriptors);
 
 	protected:
@@ -84,11 +93,15 @@ namespace ToyDX
 
 		// Offset in the descriptor heap to the first per pass CBV
 		int m_IndexOf_FirstPerPassCbv_DescriptorHeap;
+		int m_IndexOf_FirstMaterialCbv_DescriptorHeap;
 
 
 		void BuildFrameResources();
 		void BuildDescriptorHeaps();
 		void BuildConstantBufferViews();
+		void BuildMaterials();
+		void BuildDrawables();
+		void LoadMeshes();
 
 		PerPassData perPassData;
 

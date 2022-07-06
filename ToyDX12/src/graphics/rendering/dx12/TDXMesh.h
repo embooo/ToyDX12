@@ -4,7 +4,10 @@
 #include "MathUtil.h"
 #include "DX12RenderingPipeline.h"
 #include "DX12Geometry.h"
+#include "Material.h"
 #include "MeshLoader.h"
+
+#include <set>
 
 struct D3D12_INDEX_BUFFER_VIEW;
 struct D3D12_VERTEX_BUFFER_VIEW;
@@ -16,6 +19,8 @@ struct Primitive
 	size_t NumIndices;
 	size_t StartIndexLocation;	// The location of the first index read by the GPU from the index buffer. == Number of indices before the first index of this primitive
 	size_t BaseVertexLocation;  // A value added to each index before reading a vertex from the vertex buffer == Number of vertices before the first vertex of this primitive
+	int MaterialId;	// To retrieve material properties is the unordered map
+	const char* MaterialName;	// To retrieve material properties is the unordered map
 };
 
 struct MeshData
@@ -24,9 +29,9 @@ struct MeshData
 	std::vector<uint16_t>  Indices;
 	std::vector<Primitive> Primitives;
 
-	Primitive WholeMesh;
+	std::vector<MaterialProperties> materials;
+	std::unordered_map<const char*, int> materialTable;
 };
-
 
 namespace ToyDX
 {
@@ -34,6 +39,7 @@ namespace ToyDX
 	{
 	public:
 		Mesh() = default;
+		Mesh(const char* sz_Filename) ;
 
 		void CreateFromFile(const char* sz_Filename);
 

@@ -22,7 +22,7 @@ ToyDX::UploadBuffer& ToyDX::UploadBuffer::operator=(UploadBuffer&& other) noexce
 
 //*********************************************************
 
-void ToyDX::UploadBuffer::Create(ID3D12Device* p_Device, UINT ui_NumElements, size_t sz_ElementSizeInBytes, bool bIsConstantBuffer)
+void ToyDX::UploadBuffer::Create(ID3D12Device* p_Device, UINT ui_NumElements, size_t sz_ElementSizeInBytes, bool bIsConstantBuffer, const wchar_t* sz_DebugName)
 {
 	if (bIsConstantBuffer)
 	{
@@ -37,6 +37,8 @@ void ToyDX::UploadBuffer::Create(ID3D12Device* p_Device, UINT ui_NumElements, si
 	CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sz_ElementSizeInBytes * ui_NumElements);
 
 	ThrowIfFailed(p_Device->CreateCommittedResource(&heapProperty, D3D12_HEAP_FLAG_NONE, &bufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(m_UploadBuffer.GetAddressOf())));
+
+	m_UploadBuffer->SetName(sz_DebugName);
 
 	// Obtain a pointer to the resource data
 	// Map the entire resource by specifying nullptr as the range

@@ -20,33 +20,18 @@ void ToyDX::Renderer::Initialize()
 
 	ThrowIfFailed(rst_CommandList.Reset(&rst_CommandAllocator, nullptr));
 
-
 	// Create a mesh
-	m_Meshes.push_back(std::make_unique<ToyDX::Mesh>());
-	//m_Meshes.back()->CreateFromFile("./data/models/suzanne/scene.gltf");
-	//m_Meshes.back()->CreateFromFile("./data/models/sponza_pbr/scene.glb");
-	//m_Meshes.back()->CreateFromFile("./data/models/trex/scene.glb");
-	//m_Meshes.back()->CreateFromFile("./data/models/teapot/scene.gltf");
-	//m_Meshes.back()->CreateFromFile("./data/models/unity_adam_head/scene.gltf");
-	//m_Meshes.back()->CreateFromFile("./data/models/unity_lieutenant_head/scene.gltf");
-	//m_Meshes.back()->CreateFromFile("./data/models/trex/scene.glb");
-	m_Meshes.back()->CreateFromFile("./data/models/intel_sponza/scene.gltf");
-	//m_Meshes.back()->CreateFromFile("./data/models/intel_sponza_curtains/scene.gltf");
-	//m_Meshes.back()->CreateFromFile("./data/models/chest/scene.gltf");
-	//m_Meshes.back()->CreateFromFile("./data/models/chandelier/scene.gltf");
-
-	m_AllDrawables.push_back(std::make_unique<ToyDX::Drawable>(m_Meshes[0].get()));
-
-	m_OpaqueDrawables.push_back(m_AllDrawables.back().get());
-	m_OpaqueDrawables.back()->PerObjectCbIndex = 0;
-
-
+	LoadMeshes();
+	BuildMaterials();
+	BuildDrawables();
 	LoadShaders();
+
 	BuildFrameResources();
 	BuildDescriptorHeaps();
 	BuildConstantBufferViews();
-	CreateRootSignature();
+	BuildRootSignature();
 	CreatePipelineStateObjects();
+
 
 	ThrowIfFailed(rst_CommandList.Close());
 	ID3D12CommandList* a_CmdLists[1] = { &rst_CommandList };
@@ -75,6 +60,7 @@ void ToyDX::Renderer::UpdateFrameResource()
 
 	UpdatePerObjectCBs();
 	UpdatePerPassCB();
+	UpdateMaterialCBs();
 }
 
 void ToyDX::Renderer::UpdatePerObjectCBs()
@@ -90,7 +76,7 @@ void ToyDX::Renderer::UpdatePerObjectCBs()
 
 			PerObjectData perObjectData;
 			DirectX::XMStoreFloat4x4(&perObjectData.gWorld, DirectX::XMMatrixTranspose(world));
-			currObjectCB->CopyData(0, &perObjectData, sizeof(PerObjectData));
+			currObjectCB->CopyData(d->PerObjectCbIndex, &perObjectData, sizeof(PerObjectData));
 			d->NumFramesDirty--;
 		}
 	}
@@ -116,21 +102,55 @@ void ToyDX::Renderer::UpdatePerPassCB()
 	currPassCB->CopyData(0, &perPassData, sizeof(PerPassData));
 }
 
+void ToyDX::Renderer::UpdateMaterialCBs()
+{
+	UploadBuffer* currMaterialCb = m_CurrentFrameResource->cbMaterial.get();
+	
+	for (auto& material : m_Materials)
+	{
+		Material* mat = material.second.get();
+
+		if (mat->NumFramesDirty > 0)
+		{
+			XMMATRIX matTransform = XMLoadFloat4x4(&mat->MatTransform);
+
+			MaterialConstants matConstants;
+
+			matConstants.DiffuseFactor    = mat->properties.workflow.specularGlossiness.DiffuseFactor;
+			matConstants.SpecularFactor   = mat->properties.workflow.specularGlossiness.SpecularFactor;
+			matConstants.GlossinessFactor = mat->properties.workflow.specularGlossiness.GlossinessFactor;
+
+			currMaterialCb->CopyData(mat->CBIndex, &matConstants, sizeof(MaterialConstants));
+
+			mat->NumFramesDirty--;
+		}
+	}
+}
+
 void ToyDX::Renderer::RenderOpaques(ID3D12GraphicsCommandList* cmdList, std::vector<Drawable*>& opaques)
 {
-	size_t NumOpaques = opaques.size();
+	size_t NumFrameResources = m_FrameResources.size();
+	size_t NumMaterials = m_Materials.size();
+	size_t NumOpaques = m_AllDrawables.size();
+	size_t NumPerPassCbv = m_FrameResources.size(); // 1 pass cbv per frame resource
+
 	for (size_t i=0; i < NumOpaques; ++i)
 	{
-		Drawable* obj = opaques[i];
+		Drawable* obj = m_AllDrawables[i].get();
 		cmdList->IASetPrimitiveTopology(obj->PrimitiveTopology);
 		cmdList->IASetVertexBuffers(0, 1, &obj->Mesh->GetVertexBufferView());
 		cmdList->IASetIndexBuffer(&obj->Mesh->GetIndexBufferView());
 		
-		// Offset in the descriptor heap for this drawable's constant buffer
-		size_t indexInDescriptorHeap = m_CurrentFrameResourceIdx * NumOpaques + obj->PerObjectCbIndex;
-		D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(indexInDescriptorHeap, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+		// Offset in the descriptor heap for this drawable's per object constant buffer
+		size_t objectDescriptorIndexInDescHeap = m_CurrentFrameResourceIdx * NumOpaques + obj->PerObjectCbIndex;
+		D3D12_GPU_DESCRIPTOR_HANDLE objectDescriptorTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(objectDescriptorIndexInDescHeap, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+		cmdList->SetGraphicsRootDescriptorTable(0, objectDescriptorTable);
 
-		cmdList->SetGraphicsRootDescriptorTable(0, gpuDescriptor);
+		// Set material
+		size_t materialDescriptorIndexInDescHeap = (m_IndexOf_FirstMaterialCbv_DescriptorHeap + m_CurrentFrameResourceIdx * NumMaterials) + obj->material->CBIndex;
+		D3D12_GPU_DESCRIPTOR_HANDLE materialDescriptorTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(materialDescriptorIndexInDescHeap, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+		cmdList->SetGraphicsRootDescriptorTable(1, materialDescriptorTable);
+
 		if (obj->HasSubMeshes)
 		{
 			for (size_t p = 0; p < obj->Mesh->Data.Primitives.size(); ++p)
@@ -193,10 +213,10 @@ void ToyDX::Renderer::Render()
 
 	// Build and submit command lists for this frame.
 	{
-		// Set Pass Constant Buffer
+		// Set per pass constant buffer
 		int passCbvIndex = m_IndexOf_FirstPerPassCbv_DescriptorHeap + m_CurrentFrameResourceIdx;
 		D3D12_GPU_DESCRIPTOR_HANDLE passCbvDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(passCbvIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
-		rst_CommandList.SetGraphicsRootDescriptorTable(1, passCbvDescriptor);
+		rst_CommandList.SetGraphicsRootDescriptorTable(2, passCbvDescriptor);
 
 		// Set Per Object Constant Buffer and render
 		RenderOpaques(&rst_CommandList, m_OpaqueDrawables);
@@ -235,11 +255,9 @@ void ToyDX::Renderer::BuildFrameResources()
 		m_FrameResources.push_back(std::make_unique<FrameResource>(
 			DX12RenderingPipeline::GetDevice(),
 			1, // Number of passes
-			m_AllDrawables.size()// Number of objects
+			m_AllDrawables.size(),// Number of objects
+			m_Materials.size()
 		));
-
-		m_FrameResources.back()->cbPerObject->Create(DX12RenderingPipeline::GetDevice(), 1, sizeof(PerObjectData), true);
-		m_FrameResources.back()->cbPerPass->Create(DX12RenderingPipeline::GetDevice(), 1, sizeof(PerPassData), true);
 	}
 
 	m_CurrentFrameResourceIdx = 0;
@@ -250,14 +268,19 @@ void ToyDX::Renderer::BuildDescriptorHeaps()
 {
 	size_t NumDrawables = m_AllDrawables.size();
 	size_t NumFrameResources = m_FrameResources.size();
+	size_t NumMaterials = m_Materials.size();
 
 	// We have 1 CBV per frame resource (per pass constants)
-	// We have 1 CBV per drawble (per object constant)
+	// We have 1 CBV per drawable (per object constant)
+	// We have 1 CBV per material (per material constants)
 	// We need to create (NumFrameResources * NumDrawables) + NumFrameResources CBVs
-	size_t NumDescriptors = NumDrawables * NumFrameResources + NumFrameResources;
+	size_t NumDescriptors = (NumDrawables + NumMaterials) * NumFrameResources + NumFrameResources;
+
+	// Offset to the materials CBVs
+	m_IndexOf_FirstMaterialCbv_DescriptorHeap = NumDrawables * NumFrameResources;
 
 	// Offset to the per pass CBVs
-	m_IndexOf_FirstPerPassCbv_DescriptorHeap = NumDrawables * NumFrameResources;
+	m_IndexOf_FirstPerPassCbv_DescriptorHeap = (NumDrawables + NumMaterials) * NumFrameResources;
 
 	m_CbvHeap = DX12RenderingPipeline::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, NumDescriptors, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 }
@@ -272,9 +295,12 @@ void ToyDX::Renderer::BuildConstantBufferViews()
 
 	for (int i = 0; i < m_FrameResources.size(); ++i)
 	{
-		D3D12_GPU_VIRTUAL_ADDRESS CurrentCbGPUAddr = m_FrameResources[i]->cbPerObject->GetResource()->GetGPUVirtualAddress();
+		const auto& cbObject = m_FrameResources[i]->cbPerObject->GetResource();
+
 		for (int j = 0; j < NumObjects; ++j)
 		{
+			D3D12_GPU_VIRTUAL_ADDRESS CurrentCbGPUAddr = cbObject->GetGPUVirtualAddress();
+
 			// Offset to the jth constant buffer 
 			CurrentCbGPUAddr += j * PerObjectCbSizeGPU;
 
@@ -285,6 +311,36 @@ void ToyDX::Renderer::BuildConstantBufferViews()
 			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
 			cbvDesc.BufferLocation = CurrentCbGPUAddr;
 			cbvDesc.SizeInBytes    = PerObjectCbSizeGPU;
+
+			DX12RenderingPipeline::GetDevice()->CreateConstantBufferView(&cbvDesc, descriptor);
+		}
+	}
+
+	// Build materials constant buffer views
+	size_t MaterialCbSizeCPU = sizeof(MaterialConstants);
+	size_t MaterialCbSizeGPU = UploadBuffer::CalcConstantBufferSize(MaterialCbSizeCPU);
+
+	size_t NumMaterials = m_Materials.size();
+
+	for (int i = 0; i < m_FrameResources.size(); ++i)
+	{
+		const auto& materialCB = m_FrameResources[i]->cbMaterial->GetResource();
+
+		for (int j = 0; j < NumMaterials; ++j)
+		{
+			D3D12_GPU_VIRTUAL_ADDRESS CurrentCbGPUAddr = materialCB->GetGPUVirtualAddress();
+
+			// Offset to the jth constant buffer 
+			CurrentCbGPUAddr += j * MaterialCbSizeGPU;
+
+			// Offset to the its descriptor in the descriptor heap
+			int indexInDescriptorHeap = (m_IndexOf_FirstMaterialCbv_DescriptorHeap + i * NumMaterials) + j;
+
+			D3D12_CPU_DESCRIPTOR_HANDLE descriptor = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_CbvHeap->GetCPUDescriptorHandleForHeapStart()).Offset(indexInDescriptorHeap, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+
+			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
+			cbvDesc.BufferLocation = CurrentCbGPUAddr;
+			cbvDesc.SizeInBytes = MaterialCbSizeGPU;
 
 			DX12RenderingPipeline::GetDevice()->CreateConstantBufferView(&cbvDesc, descriptor);
 		}
@@ -309,29 +365,60 @@ void ToyDX::Renderer::BuildConstantBufferViews()
 
 		DX12RenderingPipeline::GetDevice()->CreateConstantBufferView(&cbvDesc, descriptor);
 	}
+
 }
 
-void ToyDX::Renderer::CreateRootSignature()
+void ToyDX::Renderer::BuildMaterials()
+{
+	int CBIndex = 0;
+	for (auto& mesh : m_Meshes)
+	{
+		for (auto& material : mesh->Data.materials)
+		{
+			std::unique_ptr<Material> rendererMaterial = std::make_unique<Material>();
+			rendererMaterial->Name = material.name;
+			rendererMaterial->properties.type = material.type;
+			rendererMaterial->properties.workflow = material.workflow;
+			rendererMaterial->CBIndex = CBIndex++;
+
+			m_Materials[material.name] = std::move(rendererMaterial);
+		}
+	}
+}
+
+void ToyDX::Renderer::BuildRootSignature()
 {
 	// A Root Signature defines what resources the application will bind to the rendering pipeline (it doesn't bind the resources)
 	// Root parameter : can be a descriptor table, root descriptor or root constant 
-	CD3DX12_ROOT_PARAMETER rootParameterSlot[2] = { };
+	CD3DX12_ROOT_PARAMETER rootParameterSlot[3] = { };
 
 	// Create descriptor table of Constant Buffer Views
-	CD3DX12_DESCRIPTOR_RANGE cbvDescriptorTable0(
+	CD3DX12_DESCRIPTOR_RANGE objectsCbvDescriptorTable0(
 		D3D12_DESCRIPTOR_RANGE_TYPE_CBV,
 		1,	// How many CBV descriptors in the table
 		0	// Shader register that this root parameter (here a constant buffer) will be bound to. (e.g register (b0))
 	);
 
-	CD3DX12_DESCRIPTOR_RANGE cbvDescriptorTable1(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
+	CD3DX12_DESCRIPTOR_RANGE materialsCbvDescriptorTable1(
+		D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 
+		1,
+		1
+	);
 
-	rootParameterSlot[0].InitAsDescriptorTable(1, &cbvDescriptorTable0);
-	rootParameterSlot[1].InitAsDescriptorTable(1, &cbvDescriptorTable1);
+	// Create descriptor table of Constant Buffer Views
+	CD3DX12_DESCRIPTOR_RANGE passCbvDescriptorTable2(
+		D3D12_DESCRIPTOR_RANGE_TYPE_CBV,
+		1,	
+		2	
+	);
+
+	rootParameterSlot[0].InitAsDescriptorTable(1, &objectsCbvDescriptorTable0);
+	rootParameterSlot[1].InitAsDescriptorTable(1, &materialsCbvDescriptorTable1);
+	rootParameterSlot[2].InitAsDescriptorTable(1, &passCbvDescriptorTable2);
 
 	// A Root signature is an array of root parameters
 	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
-	rootSignatureDesc.NumParameters = 2;
+	rootSignatureDesc.NumParameters = 3;
 	rootSignatureDesc.NumStaticSamplers = 0;
 	rootSignatureDesc.pParameters = rootParameterSlot;
 	rootSignatureDesc.pStaticSamplers = nullptr;
@@ -427,6 +514,43 @@ void ToyDX::Renderer::LoadShaders()
 
 	m_DefaultPixelShader = std::make_shared<Shader>();
 	m_DefaultPixelShader->Compile(L"./data/shaders/DefaultPixel.hlsl", "main", ShaderKind::PIXEL);
+}
+
+void ToyDX::Renderer::LoadMeshes()
+{
+	m_Meshes.push_back(std::make_unique<Mesh>("./data/models/unity_adam_head/scene.gltf"));
+	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/suzanne/scene.gltf"));
+	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/intel_sponza/scene.gltf"));
+	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/unity_lieutenant_head/scene.gltf"));
+	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/chest/scene.gltf"));
+	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/930turbo/scene.gltf"));
+	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/duck/scene.gltf"));
+
+	//m_Meshes.back()->CreateFromFile("./data/models/trex/scene.glb");
+	//m_Meshes.back()->CreateFromFile("./data/models/teapot/scene.gltf");
+	//m_Meshes.back()->CreateFromFile("./data/models/unity_adam_head/scene.gltf");
+	//m_Meshes.back()->CreateFromFile("./data/models/unity_lieutenant_head/scene.gltf");
+	//m_Meshes.back()->CreateFromFile("./data/models/trex/scene.glb");
+	//m_Meshes.back()->CreateFromFile("./data/models/intel_sponza/scene.gltf");
+	//m_Meshes.back()->CreateFromFile("./data/models/intel_sponza_curtains/scene.gltf");
+	//m_Meshes.back()->CreateFromFile("./data/models/chest/scene.gltf");
+	//m_Meshes.back()->CreateFromFile("./data/models/chandelier/scene.gltf");
+
+}
+
+void ToyDX::Renderer::BuildDrawables()
+{
+	int PerObjectCbIndex = 0;
+	for (auto& mesh : m_Meshes)
+	{
+		for (auto& primitive : mesh->Data.Primitives)
+		{
+			Material* rendererMaterial = m_Materials.at(primitive.MaterialName).get();
+			
+			m_AllDrawables.push_back(std::make_unique<Drawable>(mesh.get(), &primitive, rendererMaterial));
+			m_AllDrawables.back()->PerObjectCbIndex = PerObjectCbIndex++;
+		}
+	}
 }
 
 void ToyDX::Renderer::Terminate()

@@ -4,7 +4,8 @@ cbuffer cbPerObject : register(b0)
     float4x4 gWorld;
 };
 
-cbuffer cbPerPass : register(b1)
+
+cbuffer cbPerPass : register(b2)
 {
     // Matrices
     float4x4 gView;
@@ -39,22 +40,23 @@ struct VSOutput
 {
     float4 PosCS : SV_POSITION;
     float4 PosWS : POSITION;
-    float3 NormalWS : NORMAL;
+    float3 NormalOS : NORMAL;
     float3 Tangent : TANGENT;
     float2 TexCoord : TEXCOORD;
 };
 
-VSOutput main(VSInput input)
+VSOutput main(VSInput vsInput)
 {
     float4x4 wvp = mul(mul(gWorld, gView), gProj);
+
     VSOutput output;
 
-    output.PosCS = mul(float4(input.PosOS, 1.0), wvp);
-    output.PosCS = output.PosCS;
-    output.NormalWS = mul(float4(input.NormalOS, 0.0), gWorld).xyz;
-    output.PosWS =  mul(float4(input.PosOS, 1.0), gWorld);
-    output.Tangent = input.Tangent;
-    output.TexCoord = input.TexCoord;
+    output.PosCS    =  mul(float4(vsInput.PosOS, 1.0), wvp);
+    output.PosWS    =  mul(float4(vsInput.PosOS, 1.0), gWorld);
+    output.NormalOS =  vsInput.NormalOS;
+
+    output.Tangent  = vsInput.Tangent;
+    output.TexCoord = vsInput.TexCoord;
 
     return output;
 }

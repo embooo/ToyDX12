@@ -15,7 +15,7 @@ namespace ToyDX
 	class FrameResource
 	{
 	public:
-		FrameResource(ID3D12Device* p_Device, UINT ui_NumPasses, UINT ui_NumObjects);
+		FrameResource(ID3D12Device* p_Device, UINT ui_NumPasses, UINT ui_NumObjects, UINT ui_NumMaterials);
 		FrameResource(const FrameResource&) = delete;
 		FrameResource& operator=(const FrameResource&) = delete;
 
@@ -25,6 +25,7 @@ namespace ToyDX
 		// Each frame has its constant buffer
 		std::unique_ptr<UploadBuffer> cbPerPass   = nullptr;
 		std::unique_ptr<UploadBuffer> cbPerObject = nullptr;
+		std::unique_ptr<UploadBuffer> cbMaterial  = nullptr;
 
 		// Constant buffer setters
 		template<typename T>

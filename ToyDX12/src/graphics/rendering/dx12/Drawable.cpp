@@ -19,6 +19,15 @@ namespace ToyDX
 			BaseVertexLocation = mesh->Data.Primitives[0].BaseVertexLocation;
 		}
 	}
+	Drawable::Drawable(ToyDX::Mesh* mesh, Primitive* primitive, Material* material)
+		: Mesh(mesh), material(material)
+	{
+		HasSubMeshes = false;
+
+		NumIndices = primitive->NumIndices;
+		StartIndexLocation = primitive->StartIndexLocation;
+		BaseVertexLocation = primitive->BaseVertexLocation;
+	}
 }
 
 

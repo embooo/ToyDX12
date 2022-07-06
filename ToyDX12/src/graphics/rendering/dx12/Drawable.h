@@ -15,10 +15,13 @@ namespace ToyDX
 	public:
 		Drawable() = default;
 		Drawable(Mesh* mesh);
+		Drawable(Mesh* mesh, Primitive* primitive, Material* material);
 
 		DirectX::XMMATRIX WorldMatrix = DirectX::XMMatrixTranslationFromVector({0,0,0});
 
 		Mesh* Mesh = nullptr;
+
+		Material* material = nullptr;
 		
 		bool HasSubMeshes = false;
 

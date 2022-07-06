@@ -27,7 +27,8 @@ void MeshLoader::LoadGltf(const char* sz_Filename, MeshData* mesh)
 			}
 		}
 
-		mesh->WholeMesh = {.NumIndices = mesh->Vertices.size(), .StartIndexLocation = 0, .BaseVertexLocation = 0};
+
+		LOG_INFO("# Materials : {0}", mesh->materials.size());
 
 		cgltf_free(data);
 	}
@@ -105,9 +106,9 @@ static void LoadVertices(cgltf_primitive* primitive, MeshData* st_Mesh, const Di
 		Vertex vertex;
 		{
 			DirectX::XMStoreFloat3(&vertex.Pos, Pos);
-			vertex.Normal = normalsBuffer[i],
-			vertex.Tangent = tangentBuffer[i];
-			vertex.TexCoord0 = texCoordBuffer[i];
+			vertex.Normal	 = normalsBuffer.empty() ? DirectX::XMFLOAT3{ 0.0, 0.0, 0.0 } : normalsBuffer[i];
+			vertex.Tangent	 = tangentBuffer.empty() ? DirectX::XMFLOAT3{ 0.0, 0.0, 0.0 } : tangentBuffer[i];
+			vertex.TexCoord0 = texCoordBuffer.empty() ? DirectX::XMFLOAT2{ 0.0, 0.0 } : texCoordBuffer[i];
 		}
 
 		st_Mesh->Vertices.push_back(vertex);
@@ -116,15 +117,83 @@ static void LoadVertices(cgltf_primitive* primitive, MeshData* st_Mesh, const Di
 	//LOG_ERROR("        Vertex buffer size : {0}", st_Mesh.vertices.size());
 }
 
-static void LoadIndices(cgltf_primitive* primitive, MeshData* st_Mesh)
+static void LoadIndices(cgltf_primitive* rawPrimitive, Primitive* primitive, MeshData* st_Mesh)
 {
-	st_Mesh->Primitives.back().NumIndices = primitive->indices->count;
-	for (int idx = 0; idx < primitive->indices->count; ++idx)
+	primitive->NumIndices = rawPrimitive->indices->count;
+	for (int idx = 0; idx < rawPrimitive->indices->count; ++idx)
 	{
-		st_Mesh->Indices.push_back(uint16_t(cgltf_accessor_read_index(primitive->indices, idx)));
+		st_Mesh->Indices.push_back(uint16_t(cgltf_accessor_read_index(rawPrimitive->indices, idx)));
 	}
 
 	//LOG_ERROR("        Index buffer size : {0}", st_Mesh.indices.size());
+}
+
+void SetMaterial(MeshData* data, Primitive* primitive, cgltf_material* rawMaterial, MaterialProperties& material)
+{
+	auto materialIte = data->materialTable.find(rawMaterial->name);
+
+	if (materialIte != data->materialTable.end())
+	{
+		primitive->MaterialId = materialIte->second;
+	}
+	else
+	{
+		// Insert new material
+		int materialId = data->materials.size();
+
+		material.Id = materialId;
+		data->materialTable.insert({ rawMaterial->name, materialId });
+		data->materials.push_back(material);
+		primitive->MaterialId = materialId;
+	}
+}
+
+void LoadMaterial(cgltf_primitive* rawPrimitive, Primitive* primitive, MeshData* data)
+{
+	// https://kcoley.github.io/glTF/extensions/2.0/Khronos/KHR_materials_pbrSpecularGlossiness/
+	// Default model used in this engine is Specular-Glossiness
+	cgltf_material* material = rawPrimitive->material;
+	
+	MetallicRoughness  metallicRoughness;
+	SpecularGlossiness specularGlossiness;
+
+	if (material->has_pbr_specular_glossiness)
+	{
+		LOG_ERROR("MATERIAL WORKFLOW: Specular-Glossiness, Name : {0}", material->name);
+
+		specularGlossiness.DiffuseFactor    = DirectX::XMFLOAT4(material->pbr_specular_glossiness.diffuse_factor);
+		specularGlossiness.GlossinessFactor = material->pbr_specular_glossiness.glossiness_factor;
+		specularGlossiness.SpecularFactor   = DirectX::XMFLOAT3(material->pbr_specular_glossiness.specular_factor);
+
+		material->pbr_specular_glossiness.diffuse_texture;
+		material->pbr_specular_glossiness.specular_glossiness_texture;
+
+		
+		
+		MaterialProperties materialProperties;
+		materialProperties.type = MaterialWorkflowType::SpecularGlossiness;
+		materialProperties.workflow.specularGlossiness = specularGlossiness;
+
+		SetMaterial(data, primitive, material, materialProperties);
+	}
+
+	else if (material->has_pbr_metallic_roughness)
+	{
+		LOG_ERROR("MATERIAL WORKFLOW: Metallic-Roughness, Name : {0}", material->name);
+		
+		metallicRoughness.BaseColorFactor = DirectX::XMFLOAT4(material->pbr_metallic_roughness.base_color_factor);
+		metallicRoughness.MetallicFactor  = material->pbr_metallic_roughness.metallic_factor;
+		metallicRoughness.RoughnessFactor = material->pbr_metallic_roughness.roughness_factor;
+
+		material->pbr_metallic_roughness.base_color_texture;
+		material->pbr_metallic_roughness.metallic_roughness_texture;
+
+		MaterialProperties materialProperties;
+		materialProperties.type = MaterialWorkflowType::MetallicRoughness;
+		materialProperties.workflow.metallicRoughness = metallicRoughness;
+
+		SetMaterial(data, primitive, material, materialProperties);
+	}
 }
 
 static void LoadPrimitive(cgltf_primitive* primitive, MeshData* st_Mesh, const DirectX::XMMATRIX& currWorldMat)
@@ -132,10 +201,12 @@ static void LoadPrimitive(cgltf_primitive* primitive, MeshData* st_Mesh, const D
 	//LOG_DEBUG("      Primitive : {0} attributes, {1} indices", primitive->attributes_count, primitive->indices->count);
 
 	Primitive p = {.StartIndexLocation = st_Mesh->Indices.size(), .BaseVertexLocation = st_Mesh->Vertices.size()};
-	st_Mesh->Primitives.push_back(p);
 
-	LoadIndices(primitive, st_Mesh);
+	LoadIndices(primitive, &p, st_Mesh);
 	LoadVertices(primitive, st_Mesh, currWorldMat);
+	LoadMaterial(primitive, &p, st_Mesh);
+
+	st_Mesh->Primitives.push_back(p);
 }
 
 

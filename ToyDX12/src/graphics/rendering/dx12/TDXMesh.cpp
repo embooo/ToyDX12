@@ -5,6 +5,11 @@
 
 namespace ToyDX
 {
+	Mesh::Mesh(const char* sz_Filename)
+	{
+		CreateFromFile(sz_Filename);
+	}
+
 	void Mesh::CreateFromFile(const char* sz_Filename)
 	{
 		const char* ext = strrchr(sz_Filename, '.');
