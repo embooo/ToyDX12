@@ -23,7 +23,8 @@ workspace "ToyEngine"
 	LibPaths["Spdlog"] = FilePaths.Extern .. "spdlog"
 	LibPaths["DirectXMath"] = FilePaths.Extern .. "directxmath"
 	LibPaths["cgltf"] = FilePaths.Extern .. "cgltf"
-
+	LibPaths["stb"] = FilePaths.Extern .. "stb"
+	LibPaths["DirectXTex"] = FilePaths.Extern .. "DirectXTex"
 
 	BuildPaths = {}	  
 	BuildPaths["ToyDX12"] = "ToyDX12/build/"
@@ -49,14 +50,13 @@ for i, name in ipairs(projects) do
 		pchheader ("pch.h")
 		pchsource (FilePaths.Core .. "pch.cpp")
 
-
-
 		files 
 		{ 
 			FilePaths.Src .. "**.h",
 			FilePaths.Src .. "**.cpp",
 			FilePaths.Projects .. name .. "/**.h",
 			FilePaths.Projects .. name .. "/**.cpp",
+			LibPaths["DirectXTex"] .. "/DirectXTexUtil.cpp"
 		}
 
 		includedirs
@@ -66,7 +66,9 @@ for i, name in ipairs(projects) do
 			LibPaths["DirectX12"],
 			FilePaths.Projects .. name .. "/**",
 			LibPaths["DirectXMath"],
-			LibPaths["cgltf"]
+			LibPaths["cgltf"],
+			LibPaths["stb"],
+			LibPaths["DirectXTex"] .. "/**.h"
 		}
 
 		links
@@ -82,6 +84,9 @@ for i, name in ipairs(projects) do
 		}
 
 		filter { "files:" .. FilePaths["GraphicsCore"] .. "MeshLoader.cpp" }
+			flags { 'NoPCH' }
+
+		filter { "files:" .. LibPaths["DirectXTex"] .. "/**.cpp" }
 			flags { 'NoPCH' }
 		
 		targetdir	("ToyDX12/build/bin/" .. outputdir )
