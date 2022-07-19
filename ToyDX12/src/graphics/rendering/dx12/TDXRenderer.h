@@ -55,6 +55,8 @@ namespace ToyDX
 		void UpdatePerPassCB();
 		void UpdateMaterialCBs();
 
+		std::vector<UINT8>  CreateFallbackTexture();
+
 		void RenderOpaques(ID3D12GraphicsCommandList* cmdList, std::vector<Drawable*>& drawables);
 
 		void CreatePipelineStateObjects();
@@ -76,7 +78,15 @@ namespace ToyDX
 		std::vector< std::unique_ptr<Drawable>> m_AllDrawables;
 		std::vector<Drawable*> m_OpaqueDrawables;
 		std::vector<std::unique_ptr<Mesh>> m_Meshes;
-		std::unordered_map <const char*, std::unique_ptr<Material>> m_Materials;
+		std::unordered_map <std::string, std::unique_ptr<Material>> m_Materials;
+
+		// SrvStartIndex : index of the first SRV in the descriptor heap
+		// SrvIndexFromStart : index of the current SRV relative to SrvStartIndex
+		void CreateShaderResourceView(const Texture& texture, ID3D12DescriptorHeap* CbvSrvUavHeap, int SrvIndexInDescriptorHeap);
+
+		Texture m_FallbackTexture;
+		std::unordered_map <int, Texture*> m_Textures;
+		
 		Camera* m_CameraHandle;
 		Timer* m_TimerHandle;
 
@@ -84,7 +94,6 @@ namespace ToyDX
 		// TODO : Move to a more appropriate class
 		Microsoft::WRL::ComPtr<ID3D12RootSignature> m_RootSignature;
 		void BuildRootSignature();
-		void CreateCbvHeap(UINT ui_NumDescriptors);
 
 	protected:
 		int m_CurrentFrameResourceIdx = 0;
@@ -94,21 +103,32 @@ namespace ToyDX
 		// Offset in the descriptor heap to the first per pass CBV
 		int m_IndexOf_FirstPerPassCbv_DescriptorHeap;
 		int m_IndexOf_FirstMaterialCbv_DescriptorHeap;
+		int m_IndexOf_FirstSrv_DescriptorHeap;
+
+		int m_TotalMaterialCount = 0;
+		int m_TotalTextureCount = 1; 
+		int m_TotalDrawableCount = 0;
 
 
 		void BuildFrameResources();
-		void BuildDescriptorHeaps();
-		void BuildConstantBufferViews();
-		void BuildMaterials();
+		void CreateDescriptorHeap_Cbv_Srv();
+		void CreateStaticSamplers();
+		void CreateConstantBufferViews();
+		void BuildShaderResourceViews();
+		void LoadMaterials();
 		void BuildDrawables();
 		void LoadMeshes();
+		void LoadTextures();
+
+		std::array<D3D12_STATIC_SAMPLER_DESC, 6> m_StaticSamplers;
 
 		PerPassData perPassData;
 
 		UINT64 m_CurrentFence = 0;
 	protected:
-		// Constant buffer data
-		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_CbvHeap;
+		// Constant buffers, textures
+		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_CbvSrvHeap;
+
 		// Constant buffer 
 		std::unique_ptr<UploadBuffer> m_ConstantBuffer;
 

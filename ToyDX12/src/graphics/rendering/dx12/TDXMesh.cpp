@@ -31,5 +31,13 @@ namespace ToyDX
 		}
 
 	}
+	Mesh::~Mesh()
+	{
+		for (auto& tex : Data.textures)
+		{
+			free(tex.data);
+			tex.data = nullptr;
+		}
+	}
 }
 

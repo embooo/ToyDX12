@@ -68,7 +68,7 @@ for i, name in ipairs(projects) do
 			LibPaths["DirectXMath"],
 			LibPaths["cgltf"],
 			LibPaths["stb"],
-			LibPaths["DirectXTex"] .. "/**.h"
+			LibPaths["DirectXTex"] 
 		}
 
 		links

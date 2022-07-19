@@ -11,11 +11,32 @@ enum class MaterialWorkflowType
 	MetallicRoughness  = 2
 };
 
+struct Texture
+{
+	const char* Name;
+	int Id = -1;
+	int Width = -1;
+	int Height = -1;
+	int Channels = -1;
+	unsigned char* data;
+
+	int SrvHeapIndex = -1;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> Resource = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> UploadHeap = nullptr;
+};
+
 struct SpecularGlossiness
 {
 	DirectX::XMFLOAT4 DiffuseFactor = { 1.0f, 1.0f, 1.0f, 1.0f };	// DiffuseAlbedo
 	DirectX::XMFLOAT3 SpecularFactor = { 0.01f, 0.01f, 0.01f };		// F0
 	float GlossinessFactor = 1 - 0.25f;								// 1 - Roughness
+
+	bool hasDiffuse = false;
+	bool hasSpecularGlossiness = false;
+	int hDiffuseTexture= -1;
+	int SpecGlossSrvHeapIndex = -1;
+	int hSpecularGlossinessTexture = -1;
 };
 
 struct MetallicRoughness
@@ -23,34 +44,42 @@ struct MetallicRoughness
 	DirectX::XMFLOAT4 BaseColorFactor;
 	float MetallicFactor = 0.0f;
 	float RoughnessFactor = 0.25f;
+
+	bool hasBaseColorTex = false;
+	bool hasMetallicRoughnessTex = false;
+
+	int hBaseColorTexture = -1;
+	int hMetallicRoughnessTexture = -1;
 };
-
-union MaterialWorkflow
-{
-	struct SpecularGlossiness specularGlossiness;
-	struct MetallicRoughness  metallicRoughness;
-
-	MaterialWorkflow() { memset(this, 0, sizeof(MaterialWorkflow)); }
-};
-
 
 struct MaterialProperties
 {
+	std::string name;
 	int Id = -1;
 
+	bool hasEmissive = false;
+	bool hasNormalMap = false;
+	int hEmissiveTexture = -1;
+	int hNormalTexture   = -1;
+
 	MaterialWorkflowType type;
-	MaterialWorkflow workflow;
+
+	struct SpecularGlossiness specularGlossiness;
+	struct MetallicRoughness  metallicRoughness;
 };
+
+
 
 struct Material
 {
-	const char* Name;
+	std::string Name;
 
 	// Index corresponding to this material into the constant buffer 
 	int CBIndex = -1;
 
 	// Index corresponding to the diffuse texture into the SRV heap
-	int DiffuseSrvHeapIndex = -1;
+	int DiffuseSrvHeapIndex = -1; 
+	int NormalSrvHeapIndex = -1; 
 
 	// Indicate that the material has changed and we need to update the constant buffers
 	// of each frame resources

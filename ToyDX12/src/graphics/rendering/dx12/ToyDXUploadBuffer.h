@@ -17,7 +17,7 @@ namespace ToyDX
 
 		ID3D12Resource* GetResource() const { return m_UploadBuffer.Get(); }
 
-		void Create(ID3D12Device* p_Device, UINT ui_NumElements, size_t sz_ElementSizeInBytes, bool bIsConstantBuffer, const wchar_t* sz_DebugName);
+		void Create(ID3D12Device* p_Device, UINT ui_NumElements, size_t sz_ElementSizeInBytes, bool bIsConstantBuffer, const std::wstring& sz_DebugName);
 		void CopyData(int i_Index, void* p_Data, size_t sz_DataSizeInBytes);
 		void Destroy();
 
@@ -30,6 +30,7 @@ namespace ToyDX
 		static size_t CalcConstantBufferSize(size_t ConstantBufferSizeCPU);
 
 	protected:
+		static int NumUploadBuffers;
 		Microsoft::WRL::ComPtr<ID3D12Resource> m_UploadBuffer;
 		BYTE* m_MappedData;
 		size_t m_szElementSizeInBytes;

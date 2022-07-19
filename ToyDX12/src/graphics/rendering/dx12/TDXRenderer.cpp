@@ -20,23 +20,31 @@ void ToyDX::Renderer::Initialize()
 
 	ThrowIfFailed(rst_CommandList.Reset(&rst_CommandAllocator, nullptr));
 
-	// Create a mesh
 	LoadMeshes();
-	BuildMaterials();
-	BuildDrawables();
-	LoadShaders();
-
-	BuildFrameResources();
-	BuildDescriptorHeaps();
-	BuildConstantBufferViews();
-	BuildRootSignature();
-	CreatePipelineStateObjects();
-
 
 	ThrowIfFailed(rst_CommandList.Close());
 	ID3D12CommandList* a_CmdLists[1] = { &rst_CommandList };
 	rst_CommandQueue.ExecuteCommandLists(_countof(a_CmdLists), a_CmdLists);
 	DX12RenderingPipeline::FlushCommandQueue();
+
+	BuildFrameResources();
+
+	CreateDescriptorHeap_Cbv_Srv();
+
+	CreateFallbackTexture();
+	LoadTextures();
+
+	LoadMaterials();
+	BuildDrawables();
+
+	// Create a mesh
+	LoadShaders();
+	CreateStaticSamplers();
+
+	CreateConstantBufferViews(); // Per object, pass, materials CBVs
+
+	BuildRootSignature();
+	CreatePipelineStateObjects();
 }
 
 void ToyDX::Renderer::UpdateFrameResource()
@@ -72,10 +80,8 @@ void ToyDX::Renderer::UpdatePerObjectCBs()
 	{
 		if (d->NumFramesDirty > 0)
 		{
-			DirectX::XMMATRIX world = d->WorldMatrix;
-
 			PerObjectData perObjectData;
-			DirectX::XMStoreFloat4x4(&perObjectData.gWorld, DirectX::XMMatrixTranspose(world));
+			DirectX::XMStoreFloat4x4(&perObjectData.gWorld, DirectX::XMMatrixTranspose(d->GetWorld()));
 			currObjectCB->CopyData(d->PerObjectCbIndex, &perObjectData, sizeof(PerObjectData));
 			d->NumFramesDirty--;
 		}
@@ -105,7 +111,7 @@ void ToyDX::Renderer::UpdatePerPassCB()
 void ToyDX::Renderer::UpdateMaterialCBs()
 {
 	UploadBuffer* currMaterialCb = m_CurrentFrameResource->cbMaterial.get();
-	
+
 	for (auto& material : m_Materials)
 	{
 		Material* mat = material.second.get();
@@ -116,15 +122,60 @@ void ToyDX::Renderer::UpdateMaterialCBs()
 
 			MaterialConstants matConstants;
 
-			matConstants.DiffuseFactor    = mat->properties.workflow.specularGlossiness.DiffuseFactor;
-			matConstants.SpecularFactor   = mat->properties.workflow.specularGlossiness.SpecularFactor;
-			matConstants.GlossinessFactor = mat->properties.workflow.specularGlossiness.GlossinessFactor;
+			matConstants.DiffuseFactor    = mat->properties.specularGlossiness.DiffuseFactor;
+			matConstants.SpecularFactor   = mat->properties.specularGlossiness.SpecularFactor;
+			matConstants.GlossinessFactor = mat->properties.specularGlossiness.GlossinessFactor;
 
 			currMaterialCb->CopyData(mat->CBIndex, &matConstants, sizeof(MaterialConstants));
 
 			mat->NumFramesDirty--;
 		}
 	}
+}
+
+std::vector<UINT8> ToyDX::Renderer::CreateFallbackTexture()
+{
+	UINT TextureWidth = 4;
+	UINT TextureHeight = 4;
+	UINT TexturePixelSize = 4;
+
+	const UINT rowPitch = TextureWidth * 4;
+	const UINT textureSize = rowPitch * TextureHeight;
+
+	std::vector<UINT8> data(textureSize);
+	UINT8* pData = &data[0];
+
+	for (UINT n = 0; n < textureSize; n += TexturePixelSize)
+	{
+		//if (i % 2 == j % 2)
+		//{
+		//	pData[n] = 0x00;        // R
+		//	pData[n + 1] = 0x00;    // G
+		//	pData[n + 2] = 0x00;    // B
+		//	pData[n + 3] = 0xff;    // A
+		//}
+		//else
+		//{
+		//	pData[n] = 0xff;        // R
+		//	pData[n + 1] = 0xff;    // G
+		//	pData[n + 2] = 0xff;    // B
+		//	pData[n + 3] = 0xff;    // A
+		//}
+
+		pData[n]     = 0xff;        // R
+		pData[n + 1] = 0xff;    // G
+		pData[n + 2] = 0xff;    // B
+		pData[n + 3] = 0xff;    // A
+	}
+	
+	m_FallbackTexture.Name = "Fallback Texture";
+	m_FallbackTexture.SrvHeapIndex = m_IndexOf_FirstSrv_DescriptorHeap;
+
+	DX12RenderingPipeline::CreateTexture2D(TextureWidth, TextureHeight, 4, DXGI_FORMAT_R8G8B8A8_UNORM, pData, m_FallbackTexture.Resource, m_FallbackTexture.UploadHeap, L"Fallback Texture");
+
+	m_Textures[0] = &m_FallbackTexture;
+
+	return data;
 }
 
 void ToyDX::Renderer::RenderOpaques(ID3D12GraphicsCommandList* cmdList, std::vector<Drawable*>& opaques)
@@ -143,13 +194,45 @@ void ToyDX::Renderer::RenderOpaques(ID3D12GraphicsCommandList* cmdList, std::vec
 		
 		// Offset in the descriptor heap for this drawable's per object constant buffer
 		size_t objectDescriptorIndexInDescHeap = m_CurrentFrameResourceIdx * NumOpaques + obj->PerObjectCbIndex;
-		D3D12_GPU_DESCRIPTOR_HANDLE objectDescriptorTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(objectDescriptorIndexInDescHeap, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+		D3D12_GPU_DESCRIPTOR_HANDLE objectDescriptorTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(objectDescriptorIndexInDescHeap, DX12RenderingPipeline::CBV_SRV_UAV_Size);
 		cmdList->SetGraphicsRootDescriptorTable(0, objectDescriptorTable);
 
 		// Set material
 		size_t materialDescriptorIndexInDescHeap = (m_IndexOf_FirstMaterialCbv_DescriptorHeap + m_CurrentFrameResourceIdx * NumMaterials) + obj->material->CBIndex;
-		D3D12_GPU_DESCRIPTOR_HANDLE materialDescriptorTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(materialDescriptorIndexInDescHeap, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+
+		D3D12_GPU_DESCRIPTOR_HANDLE materialDescriptorTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(materialDescriptorIndexInDescHeap, DX12RenderingPipeline::CBV_SRV_UAV_Size);
 		cmdList->SetGraphicsRootDescriptorTable(1, materialDescriptorTable);
+
+		// Set textures
+		if (obj->material->properties.type == MaterialWorkflowType::SpecularGlossiness)
+		{
+			// Diffuse
+			D3D12_GPU_DESCRIPTOR_HANDLE diffuseTextureTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(obj->material->DiffuseSrvHeapIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+			
+			// SpecularGlossiness
+			D3D12_GPU_DESCRIPTOR_HANDLE specGlossTextureTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(obj->material->properties.specularGlossiness.SpecGlossSrvHeapIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+
+			// Normal
+			D3D12_GPU_DESCRIPTOR_HANDLE normalTextureTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(obj->material->NormalSrvHeapIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+			
+			cmdList->SetGraphicsRootDescriptorTable(3, diffuseTextureTable);
+			cmdList->SetGraphicsRootDescriptorTable(4, specGlossTextureTable);
+			cmdList->SetGraphicsRootDescriptorTable(5, normalTextureTable);
+		}
+		//else if (obj->material->properties.type == MaterialWorkflowType::MetallicRoughness)
+		//{
+		//	if (obj->material->DiffuseSrvHeapIndex != -1)
+		//	{
+		//		D3D12_GPU_DESCRIPTOR_HANDLE diffuseTextureTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(obj->material->DiffuseSrvHeapIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+		//		cmdList->SetGraphicsRootDescriptorTable(3, diffuseTextureTable);
+		//	}
+		//	else
+		//	{
+		//		D3D12_GPU_DESCRIPTOR_HANDLE diffuseTextureTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(m_FallbackTexture.SrvHeapIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+		//		cmdList->SetGraphicsRootDescriptorTable(3, diffuseTextureTable);
+		//	}
+
+		//}
 
 		if (obj->HasSubMeshes)
 		{
@@ -179,7 +262,7 @@ void ToyDX::Renderer::Render()
 
 	// A command list can be reset after it has been added to the
 	// command queue via ExecuteCommandList. Reusing the command list reuses memory.
-	ThrowIfFailed(rst_CommandList.Reset(m_CurrentFrameResource->cmdListAllocator.Get(), GetPipelineState("Solid")));
+	ThrowIfFailed(rst_CommandList.Reset(m_CurrentFrameResource->cmdListAllocator.Get(), GetPipelineState("GLTF_Solid")));
 
 	// Indicate a state transition on the resource usage.
 	ID3D12Resource* backBufferResource = m_hRenderingPipeline->GetCurrentBackBuffer();
@@ -206,7 +289,7 @@ void ToyDX::Renderer::Render()
 	// Specify the buffers we are going to render to.
 	rst_CommandList.OMSetRenderTargets(1, &backBufferView, true, &depthStencilView);
 
-	ID3D12DescriptorHeap* descriptorHeaps[] = { m_CbvHeap.Get() };
+	ID3D12DescriptorHeap* descriptorHeaps[] = { m_CbvSrvHeap.Get() };
 	rst_CommandList.SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
 	rst_CommandList.SetGraphicsRootSignature(m_RootSignature.Get());
@@ -215,7 +298,7 @@ void ToyDX::Renderer::Render()
 	{
 		// Set per pass constant buffer
 		int passCbvIndex = m_IndexOf_FirstPerPassCbv_DescriptorHeap + m_CurrentFrameResourceIdx;
-		D3D12_GPU_DESCRIPTOR_HANDLE passCbvDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(passCbvIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+		D3D12_GPU_DESCRIPTOR_HANDLE passCbvDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(passCbvIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
 		rst_CommandList.SetGraphicsRootDescriptorTable(2, passCbvDescriptor);
 
 		// Set Per Object Constant Buffer and render
@@ -255,8 +338,8 @@ void ToyDX::Renderer::BuildFrameResources()
 		m_FrameResources.push_back(std::make_unique<FrameResource>(
 			DX12RenderingPipeline::GetDevice(),
 			1, // Number of passes
-			m_AllDrawables.size(),// Number of objects
-			m_Materials.size()
+			m_TotalDrawableCount,// Number of objects
+			m_TotalMaterialCount
 		));
 	}
 
@@ -264,28 +347,81 @@ void ToyDX::Renderer::BuildFrameResources()
 	m_CurrentFrameResource = m_FrameResources[m_CurrentFrameResourceIdx].get();
 }
 
-void ToyDX::Renderer::BuildDescriptorHeaps()
+void ToyDX::Renderer::CreateDescriptorHeap_Cbv_Srv()
 {
-	size_t NumDrawables = m_AllDrawables.size();
+	size_t NumDrawables = m_TotalDrawableCount;
 	size_t NumFrameResources = m_FrameResources.size();
-	size_t NumMaterials = m_Materials.size();
+	size_t NumMaterials = m_TotalMaterialCount;
+	size_t NumTextures = m_TotalTextureCount;
 
 	// We have 1 CBV per frame resource (per pass constants)
 	// We have 1 CBV per drawable (per object constant)
 	// We have 1 CBV per material (per material constants)
 	// We need to create (NumFrameResources * NumDrawables) + NumFrameResources CBVs
-	size_t NumDescriptors = (NumDrawables + NumMaterials) * NumFrameResources + NumFrameResources;
-
+	size_t NumDescriptors = (NumDrawables + NumMaterials) * NumFrameResources + NumFrameResources + NumTextures;
+	
 	// Offset to the materials CBVs
 	m_IndexOf_FirstMaterialCbv_DescriptorHeap = NumDrawables * NumFrameResources;
 
 	// Offset to the per pass CBVs
 	m_IndexOf_FirstPerPassCbv_DescriptorHeap = (NumDrawables + NumMaterials) * NumFrameResources;
 
-	m_CbvHeap = DX12RenderingPipeline::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, NumDescriptors, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+	m_IndexOf_FirstSrv_DescriptorHeap = m_IndexOf_FirstPerPassCbv_DescriptorHeap + NumFrameResources;
+
+	m_CbvSrvHeap = DX12RenderingPipeline::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, NumDescriptors, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 }
 
-void ToyDX::Renderer::BuildConstantBufferViews()
+void ToyDX::Renderer::CreateStaticSamplers()
+{
+	
+	const CD3DX12_STATIC_SAMPLER_DESC pointWrap(
+			0, // shaderRegister
+			D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
+			D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressU
+			D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressV
+			D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
+
+
+	const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
+		1, // shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+	const CD3DX12_STATIC_SAMPLER_DESC linearWrap(
+		2, // shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
+	const CD3DX12_STATIC_SAMPLER_DESC linearClamp(
+		3, // shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+	const CD3DX12_STATIC_SAMPLER_DESC anisotropicWrap(
+		4, // shaderRegister
+		D3D12_FILTER_ANISOTROPIC, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressW
+		
+		8); // maxAnisotropy
+	const CD3DX12_STATIC_SAMPLER_DESC anisotropicClamp(
+		5, // shaderRegister
+		D3D12_FILTER_ANISOTROPIC, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressW
+		0.0f, // mipLODBias
+		8); // maxAnisotropy
+
+
+	m_StaticSamplers = { pointWrap , pointClamp , linearWrap, linearClamp , anisotropicWrap, anisotropicClamp };
+}
+
+void ToyDX::Renderer::CreateConstantBufferViews()
 {
 	// Build per object constant buffer views
 	size_t PerObjectCbSizeCPU = sizeof(PerObjectData);
@@ -306,7 +442,7 @@ void ToyDX::Renderer::BuildConstantBufferViews()
 
 			// Offset to the its descriptor in the descriptor heap
 			int indexInDescriptorHeap = i * NumObjects + j;
-			D3D12_CPU_DESCRIPTOR_HANDLE descriptor = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_CbvHeap->GetCPUDescriptorHandleForHeapStart()).Offset(indexInDescriptorHeap, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+			D3D12_CPU_DESCRIPTOR_HANDLE descriptor = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetCPUDescriptorHandleForHeapStart()).Offset(indexInDescriptorHeap, DX12RenderingPipeline::CBV_SRV_UAV_Size);
 
 			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
 			cbvDesc.BufferLocation = CurrentCbGPUAddr;
@@ -336,7 +472,7 @@ void ToyDX::Renderer::BuildConstantBufferViews()
 			// Offset to the its descriptor in the descriptor heap
 			int indexInDescriptorHeap = (m_IndexOf_FirstMaterialCbv_DescriptorHeap + i * NumMaterials) + j;
 
-			D3D12_CPU_DESCRIPTOR_HANDLE descriptor = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_CbvHeap->GetCPUDescriptorHandleForHeapStart()).Offset(indexInDescriptorHeap, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+			D3D12_CPU_DESCRIPTOR_HANDLE descriptor = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetCPUDescriptorHandleForHeapStart()).Offset(indexInDescriptorHeap, DX12RenderingPipeline::CBV_SRV_UAV_Size);
 
 			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
 			cbvDesc.BufferLocation = CurrentCbGPUAddr;
@@ -357,7 +493,7 @@ void ToyDX::Renderer::BuildConstantBufferViews()
 		// Offset to the its descriptor in the descriptor heap
 		int indexInDescriptorHeap = m_IndexOf_FirstPerPassCbv_DescriptorHeap + i;
 
-		D3D12_CPU_DESCRIPTOR_HANDLE descriptor = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_CbvHeap->GetCPUDescriptorHandleForHeapStart()).Offset(indexInDescriptorHeap, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+		D3D12_CPU_DESCRIPTOR_HANDLE descriptor = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetCPUDescriptorHandleForHeapStart()).Offset(indexInDescriptorHeap, DX12RenderingPipeline::CBV_SRV_UAV_Size);
 
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
 		cbvDesc.BufferLocation = CurrentCbGPUAddr;
@@ -366,31 +502,97 @@ void ToyDX::Renderer::BuildConstantBufferViews()
 		DX12RenderingPipeline::GetDevice()->CreateConstantBufferView(&cbvDesc, descriptor);
 	}
 
+
 }
 
-void ToyDX::Renderer::BuildMaterials()
+void ToyDX::Renderer::BuildShaderResourceViews()
+{
+	// Build shader resource views
+	int IdxTexture = 0;
+	for (auto& texture : m_Textures)
+	{
+
+	}
+}
+
+void ToyDX::Renderer::LoadMaterials()
 {
 	int CBIndex = 0;
 	for (auto& mesh : m_Meshes)
 	{
 		for (auto& material : mesh->Data.materials)
 		{
-			std::unique_ptr<Material> rendererMaterial = std::make_unique<Material>();
-			rendererMaterial->Name = material.name;
-			rendererMaterial->properties.type = material.type;
-			rendererMaterial->properties.workflow = material.workflow;
-			rendererMaterial->CBIndex = CBIndex++;
+			std::unique_ptr<Material> renderMat = std::make_unique<Material>();
+			renderMat->Name = material.name;
+			renderMat->properties.type = material.type;
+			renderMat->CBIndex = CBIndex++;
 
-			m_Materials[material.name] = std::move(rendererMaterial);
+			// By default : first SRV contains a fallback texture
+			renderMat->NormalSrvHeapIndex = m_IndexOf_FirstSrv_DescriptorHeap;
+
+			if (material.hasNormalMap)
+			{
+				renderMat->NormalSrvHeapIndex = m_Textures.at(material.hNormalTexture)->SrvHeapIndex;
+			}
+
+			if (material.type == MaterialWorkflowType::SpecularGlossiness)
+			{
+				renderMat->properties.specularGlossiness = material.specularGlossiness;
+				
+				renderMat->DiffuseSrvHeapIndex = m_IndexOf_FirstSrv_DescriptorHeap;
+				renderMat->properties.specularGlossiness.SpecGlossSrvHeapIndex = m_IndexOf_FirstSrv_DescriptorHeap;
+
+				if (material.specularGlossiness.hasDiffuse)
+				{
+					renderMat->DiffuseSrvHeapIndex = m_Textures.at(material.specularGlossiness.hDiffuseTexture)->SrvHeapIndex;
+				}
+
+				if (material.specularGlossiness.hasSpecularGlossiness)
+				{
+					renderMat->properties.specularGlossiness.SpecGlossSrvHeapIndex = m_Textures.at(material.specularGlossiness.hSpecularGlossinessTexture)->SrvHeapIndex;
+				}
+			}
+
+			else if (material.type == MaterialWorkflowType::MetallicRoughness)
+			{
+				renderMat->properties.metallicRoughness = material.metallicRoughness;
+
+				renderMat->DiffuseSrvHeapIndex = 0; // 0 : id of fallback texture by default
+
+				if (material.metallicRoughness.hasBaseColorTex)
+				{
+					renderMat->DiffuseSrvHeapIndex = m_Textures.at(material.metallicRoughness.hBaseColorTexture)->SrvHeapIndex;
+				}
+
+				if (material.metallicRoughness.hasMetallicRoughnessTex)
+				{
+					renderMat->DiffuseSrvHeapIndex = m_Textures.at(material.metallicRoughness.hBaseColorTexture)->SrvHeapIndex;
+				}
+			}
+
+			m_Materials[material.name.c_str()] = std::move(renderMat);
 		}
 	}
+}
+
+void ToyDX::Renderer::CreateShaderResourceView(const Texture& texture, ID3D12DescriptorHeap* CbvSrvUavHeap, int SrvIndexInDescriptorHeap)
+{
+	D3D12_CPU_DESCRIPTOR_HANDLE descriptor = CD3DX12_CPU_DESCRIPTOR_HANDLE(CbvSrvUavHeap->GetCPUDescriptorHandleForHeapStart()).Offset(SrvIndexInDescriptorHeap, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Format = texture.Resource->GetDesc().Format;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Texture2D.MipLevels = 1;
+
+	DX12RenderingPipeline::GetDevice()->CreateShaderResourceView(texture.Resource.Get(), &srvDesc, descriptor);
 }
 
 void ToyDX::Renderer::BuildRootSignature()
 {
 	// A Root Signature defines what resources the application will bind to the rendering pipeline (it doesn't bind the resources)
 	// Root parameter : can be a descriptor table, root descriptor or root constant 
-	CD3DX12_ROOT_PARAMETER rootParameterSlot[3] = { };
+	CD3DX12_ROOT_PARAMETER rootParameterSlot[6] = { };
 
 	// Create descriptor table of Constant Buffer Views
 	CD3DX12_DESCRIPTOR_RANGE objectsCbvDescriptorTable0(
@@ -412,16 +614,43 @@ void ToyDX::Renderer::BuildRootSignature()
 		2	
 	);
 
+	// Create descriptor table of Shader Resource Views
+
+	// Diffuse
+	CD3DX12_DESCRIPTOR_RANGE srvDescriptorTable(
+		D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+		1,
+		0
+	);
+
+	// SpecularGlossiness
+	CD3DX12_DESCRIPTOR_RANGE srvDescriptorTable1(
+		D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+		1,
+		1
+	);
+
+	// Normal
+	CD3DX12_DESCRIPTOR_RANGE srvDescriptorTable2(
+		D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+		1,
+		2
+	);
+
+
 	rootParameterSlot[0].InitAsDescriptorTable(1, &objectsCbvDescriptorTable0);
 	rootParameterSlot[1].InitAsDescriptorTable(1, &materialsCbvDescriptorTable1);
 	rootParameterSlot[2].InitAsDescriptorTable(1, &passCbvDescriptorTable2);
+	rootParameterSlot[3].InitAsDescriptorTable(1, &srvDescriptorTable);
+	rootParameterSlot[4].InitAsDescriptorTable(1, &srvDescriptorTable1);
+	rootParameterSlot[5].InitAsDescriptorTable(1, &srvDescriptorTable2);
 
 	// A Root signature is an array of root parameters
 	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
-	rootSignatureDesc.NumParameters = 3;
-	rootSignatureDesc.NumStaticSamplers = 0;
+	rootSignatureDesc.NumParameters = 6;
+	rootSignatureDesc.NumStaticSamplers = m_StaticSamplers.size();
 	rootSignatureDesc.pParameters = rootParameterSlot;
-	rootSignatureDesc.pStaticSamplers = nullptr;
+	rootSignatureDesc.pStaticSamplers = m_StaticSamplers.data();
 	rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 	// *** Create *** 
@@ -484,7 +713,7 @@ void ToyDX::Renderer::CreatePipelineStateObjects()
 
 	m_PipelineStateObjects.insert
 	(
-		{ "Solid", DX12RenderingPipeline::CreatePipelineStateObject
+		{ "GLTF_Solid", DX12RenderingPipeline::CreatePipelineStateObject
 			(
 				m_RootSignature.Get(),
 				m_DefaultVertexShader->GetByteCode(),
@@ -518,14 +747,24 @@ void ToyDX::Renderer::LoadShaders()
 
 void ToyDX::Renderer::LoadMeshes()
 {
-	m_Meshes.push_back(std::make_unique<Mesh>("./data/models/unity_adam_head/scene.gltf"));
+	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/unity_adam_head/scene.gltf"));
 	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/suzanne/scene.gltf"));
 	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/intel_sponza/scene.gltf"));
 	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/unity_lieutenant_head/scene.gltf"));
 	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/chest/scene.gltf"));
 	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/930turbo/scene.gltf"));
-	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/duck/scene.gltf"));
 
+	std::unique_ptr<Mesh> mesh = std::make_unique<Mesh>("./data/models/sponza/scene.gltf");
+
+	m_TotalMaterialCount += mesh->Data.materials.size();
+	m_TotalTextureCount  += mesh->Data.textures.size();
+	m_TotalDrawableCount  += mesh->Data.Primitives.size();
+
+	m_Meshes.push_back(std::move(mesh));
+
+	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/duck/scene.gltf"));
+	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/intel_sponza/scene.gltf"));
+	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/intel_sponza_curtains/scene.gltf"));
 	//m_Meshes.back()->CreateFromFile("./data/models/trex/scene.glb");
 	//m_Meshes.back()->CreateFromFile("./data/models/teapot/scene.gltf");
 	//m_Meshes.back()->CreateFromFile("./data/models/unity_adam_head/scene.gltf");
@@ -538,6 +777,32 @@ void ToyDX::Renderer::LoadMeshes()
 
 }
 
+void ToyDX::Renderer::LoadTextures()
+{
+
+	CreateShaderResourceView(m_FallbackTexture, m_CbvSrvHeap.Get(), m_FallbackTexture.SrvHeapIndex);
+
+	int TextureNumber = 1; // Id 0 is reserverd for a fallback texture 
+
+	for (auto& mesh : m_Meshes)
+	{
+		for (auto& texture : mesh->Data.textures)
+		{
+			std::string name = std::string(texture.Name);
+
+			DX12RenderingPipeline::CreateTexture2D(texture.Width, texture.Height, texture.Channels, DXGI_FORMAT_R8G8B8A8_UNORM, texture.data, texture.Resource, texture.UploadHeap,  std::wstring(&name[0], &name[name.size()]));
+
+			texture.SrvHeapIndex = m_IndexOf_FirstSrv_DescriptorHeap + TextureNumber;
+
+			CreateShaderResourceView(texture, m_CbvSrvHeap.Get(), texture.SrvHeapIndex);
+
+			m_Textures[texture.Id] = &texture;
+
+			++TextureNumber;
+		}
+	}
+}
+
 void ToyDX::Renderer::BuildDrawables()
 {
 	int PerObjectCbIndex = 0;
@@ -545,7 +810,7 @@ void ToyDX::Renderer::BuildDrawables()
 	{
 		for (auto& primitive : mesh->Data.Primitives)
 		{
-			Material* rendererMaterial = m_Materials.at(primitive.MaterialName).get();
+			Material* rendererMaterial = m_Materials.at(primitive.MaterialName.c_str()).get();
 			
 			m_AllDrawables.push_back(std::make_unique<Drawable>(mesh.get(), &primitive, rendererMaterial));
 			m_AllDrawables.back()->PerObjectCbIndex = PerObjectCbIndex++;

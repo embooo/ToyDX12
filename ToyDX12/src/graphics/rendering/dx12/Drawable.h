@@ -17,7 +17,9 @@ namespace ToyDX
 		Drawable(Mesh* mesh);
 		Drawable(Mesh* mesh, Primitive* primitive, Material* material);
 
-		DirectX::XMMATRIX WorldMatrix = DirectX::XMMatrixTranslationFromVector({0,0,0});
+		DirectX::XMMATRIX* WorldMatrix = nullptr;
+
+		DirectX::XMMATRIX& GetWorld() { return *WorldMatrix; }
 
 		Mesh* Mesh = nullptr;
 

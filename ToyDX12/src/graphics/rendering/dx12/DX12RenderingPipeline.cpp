@@ -1,7 +1,11 @@
 #include "pch.h"
 
 #include "DX12RenderingPipeline.h"
+#include "ToyDXUploadBuffer.h"
 #include "Window.h"
+
+#include <d3d12.h>
+#include "DirectXTex.h"
 
 std::unique_ptr<DX12Device>			DX12RenderingPipeline::s_TDXDevice;
 UINT64								DX12RenderingPipeline::s_CurrentFenceValue;
@@ -15,6 +19,7 @@ DXGI_SAMPLE_DESC					DX12RenderingPipeline::s_SampleDesc;
 UINT								DX12RenderingPipeline::CBV_SRV_UAV_Size;
 UINT								DX12RenderingPipeline::RTV_Size;
 UINT								DX12RenderingPipeline::DSV_Size;
+UINT								DX12RenderingPipeline::SMP_Size;
 
 void DX12RenderingPipeline::Init()
 {
@@ -41,6 +46,7 @@ void DX12RenderingPipeline::Init(const Win32Window& p_Window)
 	RTV_Size			= s_TDXDevice->GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	DSV_Size			= s_TDXDevice->GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	CBV_SRV_UAV_Size	= s_TDXDevice->GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	SMP_Size	    = s_TDXDevice->GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 
 	// Create the swap chain and depth stencil
 	CreateSwapchain(Win32Window::GetHWND(), p_Window.GetWidth(), p_Window.GetHeight());
@@ -169,9 +175,9 @@ void DX12RenderingPipeline::CreateSwapchain(HWND hWnd,  UINT ui_Width, UINT ui_H
 
 	// Clear values
 	RTClearValues.Format = e_Format;
-	RTClearValues.Color[0] = 0.27f;
-	RTClearValues.Color[1] = 0.27f;
-	RTClearValues.Color[2] = 0.27f;
+	RTClearValues.Color[0] = 0.87;
+	RTClearValues.Color[1] = 0.87;
+	RTClearValues.Color[2] = 0.87;
 	RTClearValues.Color[3] = 1.0f;
 
 	//-----------------------------------------------------------------------
@@ -506,6 +512,79 @@ ComPtr<ID3D12PipelineState> DX12RenderingPipeline::CreatePipelineStateObject(
 	return pso;
 }
 
+void DX12RenderingPipeline::CreateTexture2D(UINT64 ui_Width, UINT ui_Height, UINT ui_Channels, DXGI_FORMAT e_Format, unsigned char* data, ComPtr<ID3D12Resource>& m_texture, ComPtr<ID3D12Resource>& textureUploadHeap, const std::wstring& debugName)
+{
+	// Note: ComPtr's are CPU objects but this resource needs to stay in scope until
+	// the command list that references it has finished executing on the GPU.
+	// We will flush the GPU at the end of this method to ensure the resource is not
+	// prematurely destroyed.
+
+
+	ID3D12Device* p_Device = DX12RenderingPipeline::GetDevice();
+	ID3D12GraphicsCommandList* p_CmdList = &DX12RenderingPipeline::GetCommandList();
+	ID3D12CommandQueue* p_CmdQueue = &DX12RenderingPipeline::GetCommandQueue();
+	ID3D12CommandAllocator* p_CmdAlloc = &DX12RenderingPipeline::GetCommandAllocator();
+	ThrowIfFailed(p_CmdList->Reset(p_CmdAlloc, nullptr));
+
+	// Create the texture.
+	{
+		// Describe and create a Texture2D.
+		D3D12_RESOURCE_DESC textureDesc = {};
+		textureDesc.MipLevels = 1;
+		textureDesc.Format = e_Format;
+		textureDesc.Width = ui_Width;
+		textureDesc.Height = ui_Height;
+		textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+		textureDesc.DepthOrArraySize = 1;
+		textureDesc.SampleDesc.Count = 1;
+		textureDesc.SampleDesc.Quality = 0;
+		textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+		CD3DX12_HEAP_PROPERTIES defaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+
+		ThrowIfFailed(p_Device->CreateCommittedResource(
+			&defaultHeap,
+			D3D12_HEAP_FLAG_NONE,
+			&textureDesc,
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			nullptr,
+			IID_PPV_ARGS(&m_texture)));
+
+		m_texture->SetName(debugName.c_str());
+
+		const UINT64 uploadBufferSize = GetRequiredIntermediateSize(m_texture.Get(), 0, 1);
+
+		CD3DX12_HEAP_PROPERTIES uploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+		CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
+		// Create the GPU upload buffer.
+		ThrowIfFailed(p_Device->CreateCommittedResource(
+			&uploadHeap,
+			D3D12_HEAP_FLAG_NONE,
+			&bufferDesc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(&textureUploadHeap)));
+
+		// Copy data to the intermediate upload heap and then schedule a copy 
+		// from the upload heap to the Texture2D.
+		D3D12_SUBRESOURCE_DATA textureData = {};
+		textureData.pData = &data[0];
+		textureData.RowPitch = ui_Width * ui_Channels;
+		textureData.SlicePitch = textureData.RowPitch * ui_Height;
+
+		CD3DX12_RESOURCE_BARRIER transitionBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_texture.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		UpdateSubresources(p_CmdList, m_texture.Get(), textureUploadHeap.Get(), 0, 0, 1, &textureData);
+		p_CmdList->ResourceBarrier(1, &transitionBarrier);
+	}
+
+	// Close the command list and execute it to begin the initial GPU setup.
+	ThrowIfFailed(p_CmdList->Close());
+	ID3D12CommandList* ppCommandLists[] = { p_CmdList };
+	p_CmdQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+	FlushCommandQueue();
+
+}
 //*********************************************************
 
 void DX12RenderingPipeline::Terminate()

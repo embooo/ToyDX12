@@ -41,8 +41,12 @@ struct VSOutput
     float4 PosCS : SV_POSITION;
     float4 PosWS : POSITION;
     float3 NormalOS : NORMAL;
+    float3 NormalWS : NORMAL1;
+
     float3 Tangent : TANGENT;
     float2 TexCoord : TEXCOORD;
+    
+    
 };
 
 VSOutput main(VSInput vsInput)
@@ -53,10 +57,11 @@ VSOutput main(VSInput vsInput)
 
     output.PosCS    =  mul(float4(vsInput.PosOS, 1.0), wvp);
     output.PosWS    =  mul(float4(vsInput.PosOS, 1.0), gWorld);
+
     output.NormalOS =  vsInput.NormalOS;
+    output.NormalWS =  mul(float4(vsInput.NormalOS, 1.0), gWorld);
 
     output.Tangent  = vsInput.Tangent;
-    output.TexCoord = vsInput.TexCoord;
-
+    output.TexCoord = float2(vsInput.TexCoord.x, vsInput.TexCoord.y) ;
     return output;
 }

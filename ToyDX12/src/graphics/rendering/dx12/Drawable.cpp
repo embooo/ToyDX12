@@ -25,6 +25,7 @@ namespace ToyDX
 		HasSubMeshes = false;
 
 		NumIndices = primitive->NumIndices;
+		WorldMatrix = &primitive->WorldMatrix;
 		StartIndexLocation = primitive->StartIndexLocation;
 		BaseVertexLocation = primitive->BaseVertexLocation;
 	}

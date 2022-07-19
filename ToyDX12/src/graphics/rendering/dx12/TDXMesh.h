@@ -20,7 +20,9 @@ struct Primitive
 	size_t StartIndexLocation;	// The location of the first index read by the GPU from the index buffer. == Number of indices before the first index of this primitive
 	size_t BaseVertexLocation;  // A value added to each index before reading a vertex from the vertex buffer == Number of vertices before the first vertex of this primitive
 	int MaterialId;	// To retrieve material properties is the unordered map
-	const char* MaterialName;	// To retrieve material properties is the unordered map
+	std::string MaterialName;	// To retrieve material properties is the unordered map
+
+	DirectX::XMMATRIX WorldMatrix;
 };
 
 struct MeshData
@@ -31,6 +33,9 @@ struct MeshData
 
 	std::vector<MaterialProperties> materials;
 	std::unordered_map<const char*, int> materialTable;
+
+	std::vector<Texture> textures;
+	std::unordered_map<const char*, int> textureTable;
 };
 
 namespace ToyDX
@@ -76,7 +81,7 @@ namespace ToyDX
 
 		MeshData Data;
 
-		~Mesh() { LOG_WARN("Mesh::~Mesh()"); };
+		~Mesh();
 	protected:
 
 

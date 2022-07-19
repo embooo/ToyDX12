@@ -100,7 +100,8 @@ public:
 	ComPtr<ID3D12Resource> mp_SwapChainBuffers[s_NumSwapChainBuffers];
 	CD3DX12_CPU_DESCRIPTOR_HANDLE m_SwapChainRTViews[s_NumSwapChainBuffers];
 
-
+	static void CreateTexture2D(UINT64 ui_Width, UINT ui_Height, UINT ui_Channels, DXGI_FORMAT e_Format, unsigned char* data, ComPtr<ID3D12Resource>& textureResource, ComPtr<ID3D12Resource>& uploadBuffer, const std::wstring& debugName);
+		
 	int  m_iCurrentBackBuffer = 0;
 	bool m_bUse4xMsaa = false;
 	UINT m_Msaa4xQuality	= 0;
@@ -117,6 +118,7 @@ public:
 	static UINT CBV_SRV_UAV_Size;
 	static UINT RTV_Size;
 	static UINT DSV_Size;
+	static UINT SMP_Size;
 };
 
 
