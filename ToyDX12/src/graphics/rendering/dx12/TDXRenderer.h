@@ -29,10 +29,20 @@ struct PerPassData
 
 struct MaterialConstants
 {
+	// Specular/Glossiness
 	DirectX::XMFLOAT4 DiffuseFactor = { 1.0f, 1.0f, 1.0f, 1.0f };	// DiffuseAlbedo
 	DirectX::XMFLOAT3 SpecularFactor = { 0.01f, 0.01f, 0.01f };		// F0
 	float GlossinessFactor = 1 - 0.25f;								// 1 - Roughness
 };
+
+struct MetallicRoughnessMaterial
+{
+	// Metallic/Roughness
+	DirectX::XMFLOAT4 BaseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+	float Metallic  = 0.0f;
+	float Roughness = 1.0f;
+};
+
 
 namespace ToyDX
 {
@@ -137,6 +147,9 @@ namespace ToyDX
 		
 		std::shared_ptr<Shader> m_DefaultVertexShader = nullptr;
 		std::shared_ptr<Shader> m_DefaultPixelShader = nullptr;
+
+		std::shared_ptr<Shader> m_PBR_SpecularGlossiness_Pixel = nullptr;
+		std::shared_ptr<Shader> m_PBR_MetallicRoughness_Pixel = nullptr;
 	protected:
 		CD3DX12_RASTERIZER_DESC m_RasterizerState;
 

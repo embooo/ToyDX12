@@ -120,13 +120,21 @@ void ToyDX::Renderer::UpdateMaterialCBs()
 		{
 			XMMATRIX matTransform = XMLoadFloat4x4(&mat->MatTransform);
 
-			MaterialConstants matConstants;
+			//MaterialConstants matConstants;
 
-			matConstants.DiffuseFactor    = mat->properties.specularGlossiness.DiffuseFactor;
-			matConstants.SpecularFactor   = mat->properties.specularGlossiness.SpecularFactor;
-			matConstants.GlossinessFactor = mat->properties.specularGlossiness.GlossinessFactor;
+			//matConstants.DiffuseFactor    = mat->properties.specularGlossiness.DiffuseFactor;
+			//matConstants.SpecularFactor   = mat->properties.specularGlossiness.SpecularFactor;
+			//matConstants.GlossinessFactor = mat->properties.specularGlossiness.GlossinessFactor;
 
-			currMaterialCb->CopyData(mat->CBIndex, &matConstants, sizeof(MaterialConstants));
+			//currMaterialCb->CopyData(mat->CBIndex, &matConstants, sizeof(MaterialConstants));
+
+			MetallicRoughnessMaterial matConstants;
+
+			matConstants.BaseColor = mat->properties.metallicRoughness.BaseColor;
+			matConstants.Metallic  = mat->properties.metallicRoughness.Metallic;
+			matConstants.Roughness = mat->properties.metallicRoughness.Roughness;
+
+			currMaterialCb->CopyData(mat->CBIndex, &matConstants, sizeof(MetallicRoughnessMaterial));
 
 			mat->NumFramesDirty--;
 		}
@@ -193,47 +201,48 @@ void ToyDX::Renderer::RenderOpaques(ID3D12GraphicsCommandList* cmdList, std::vec
 		cmdList->IASetIndexBuffer(&obj->Mesh->GetIndexBufferView());
 		
 		// Offset in the descriptor heap for this drawable's per object constant buffer
-		size_t objectDescriptorIndexInDescHeap = m_CurrentFrameResourceIdx * NumOpaques + obj->PerObjectCbIndex;
-		D3D12_GPU_DESCRIPTOR_HANDLE objectDescriptorTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(objectDescriptorIndexInDescHeap, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+		size_t perObjectCBDescriptor = m_CurrentFrameResourceIdx * NumOpaques + obj->PerObjectCbIndex;
+		D3D12_GPU_DESCRIPTOR_HANDLE objectDescriptorTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(perObjectCBDescriptor, DX12RenderingPipeline::CBV_SRV_UAV_Size);
 		cmdList->SetGraphicsRootDescriptorTable(0, objectDescriptorTable);
 
 		// Set material
-		size_t materialDescriptorIndexInDescHeap = (m_IndexOf_FirstMaterialCbv_DescriptorHeap + m_CurrentFrameResourceIdx * NumMaterials) + obj->material->CBIndex;
-
-		D3D12_GPU_DESCRIPTOR_HANDLE materialDescriptorTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(materialDescriptorIndexInDescHeap, DX12RenderingPipeline::CBV_SRV_UAV_Size);
-		cmdList->SetGraphicsRootDescriptorTable(1, materialDescriptorTable);
-
-		// Set textures
-		if (obj->material->properties.type == MaterialWorkflowType::SpecularGlossiness)
 		{
-			// Diffuse
-			D3D12_GPU_DESCRIPTOR_HANDLE diffuseTextureTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(obj->material->DiffuseSrvHeapIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
-			
-			// SpecularGlossiness
-			D3D12_GPU_DESCRIPTOR_HANDLE specGlossTextureTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(obj->material->properties.specularGlossiness.SpecGlossSrvHeapIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+			size_t matDescriptor = (m_IndexOf_FirstMaterialCbv_DescriptorHeap + m_CurrentFrameResourceIdx * NumMaterials) + obj->material->CBIndex;
+
+			D3D12_GPU_DESCRIPTOR_HANDLE matDescriptorTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(matDescriptor, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+			cmdList->SetGraphicsRootDescriptorTable(1, matDescriptorTable);
+		}
+
+		// Set material textures
+		{
+			if (obj->material->properties.type == MaterialWorkflowType::SpecularGlossiness)
+			{
+				// Diffuse
+				D3D12_GPU_DESCRIPTOR_HANDLE diffuseTextureTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(obj->material->DiffuseSrvHeapIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+
+				// SpecularGlossiness
+				D3D12_GPU_DESCRIPTOR_HANDLE specGlossTextureTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(obj->material->properties.specularGlossiness.SpecGlossSrvHeapIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+
+				cmdList->SetGraphicsRootDescriptorTable(3, diffuseTextureTable);
+				cmdList->SetGraphicsRootDescriptorTable(4, specGlossTextureTable);
+			}
+			else if (obj->material->properties.type == MaterialWorkflowType::MetallicRoughness)
+			{
+				// BaseColor
+				D3D12_GPU_DESCRIPTOR_HANDLE baseColor = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(obj->material->BaseColorSrvHeapIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+
+				D3D12_GPU_DESCRIPTOR_HANDLE metalRough = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(obj->material->properties.metallicRoughness.MetallicRoughnessSrvHeapIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+
+				cmdList->SetGraphicsRootDescriptorTable(3, baseColor);
+				cmdList->SetGraphicsRootDescriptorTable(4, metalRough);
+			}
 
 			// Normal
 			D3D12_GPU_DESCRIPTOR_HANDLE normalTextureTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(obj->material->NormalSrvHeapIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
-			
-			cmdList->SetGraphicsRootDescriptorTable(3, diffuseTextureTable);
-			cmdList->SetGraphicsRootDescriptorTable(4, specGlossTextureTable);
 			cmdList->SetGraphicsRootDescriptorTable(5, normalTextureTable);
 		}
-		//else if (obj->material->properties.type == MaterialWorkflowType::MetallicRoughness)
-		//{
-		//	if (obj->material->DiffuseSrvHeapIndex != -1)
-		//	{
-		//		D3D12_GPU_DESCRIPTOR_HANDLE diffuseTextureTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(obj->material->DiffuseSrvHeapIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
-		//		cmdList->SetGraphicsRootDescriptorTable(3, diffuseTextureTable);
-		//	}
-		//	else
-		//	{
-		//		D3D12_GPU_DESCRIPTOR_HANDLE diffuseTextureTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(m_FallbackTexture.SrvHeapIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
-		//		cmdList->SetGraphicsRootDescriptorTable(3, diffuseTextureTable);
-		//	}
 
-		//}
-
+		// Draw
 		if (obj->HasSubMeshes)
 		{
 			for (size_t p = 0; p < obj->Mesh->Data.Primitives.size(); ++p)
@@ -262,7 +271,7 @@ void ToyDX::Renderer::Render()
 
 	// A command list can be reset after it has been added to the
 	// command queue via ExecuteCommandList. Reusing the command list reuses memory.
-	ThrowIfFailed(rst_CommandList.Reset(m_CurrentFrameResource->cmdListAllocator.Get(), GetPipelineState("GLTF_Solid")));
+	ThrowIfFailed(rst_CommandList.Reset(m_CurrentFrameResource->cmdListAllocator.Get(), GetPipelineState("PBR_MetallicRoughness")));
 
 	// Indicate a state transition on the resource usage.
 	ID3D12Resource* backBufferResource = m_hRenderingPipeline->GetCurrentBackBuffer();
@@ -453,7 +462,8 @@ void ToyDX::Renderer::CreateConstantBufferViews()
 	}
 
 	// Build materials constant buffer views
-	size_t MaterialCbSizeCPU = sizeof(MaterialConstants);
+	//size_t MaterialCbSizeCPU = sizeof(MaterialConstants);
+	size_t MaterialCbSizeCPU = sizeof(MetallicRoughnessMaterial);
 	size_t MaterialCbSizeGPU = UploadBuffer::CalcConstantBufferSize(MaterialCbSizeCPU);
 
 	size_t NumMaterials = m_Materials.size();
@@ -557,16 +567,16 @@ void ToyDX::Renderer::LoadMaterials()
 			{
 				renderMat->properties.metallicRoughness = material.metallicRoughness;
 
-				renderMat->DiffuseSrvHeapIndex = 0; // 0 : id of fallback texture by default
+				renderMat->BaseColorSrvHeapIndex = 0; // 0 : id of fallback texture by default
 
 				if (material.metallicRoughness.hasBaseColorTex)
 				{
-					renderMat->DiffuseSrvHeapIndex = m_Textures.at(material.metallicRoughness.hBaseColorTexture)->SrvHeapIndex;
+					renderMat->BaseColorSrvHeapIndex = m_Textures.at(material.metallicRoughness.hBaseColorTexture)->SrvHeapIndex;
 				}
 
 				if (material.metallicRoughness.hasMetallicRoughnessTex)
 				{
-					renderMat->DiffuseSrvHeapIndex = m_Textures.at(material.metallicRoughness.hBaseColorTexture)->SrvHeapIndex;
+					renderMat->properties.metallicRoughness.MetallicRoughnessSrvHeapIndex = m_Textures.at(material.metallicRoughness.hMetallicRoughnessTexture)->SrvHeapIndex;
 				}
 			}
 
@@ -616,21 +626,21 @@ void ToyDX::Renderer::BuildRootSignature()
 
 	// Create descriptor table of Shader Resource Views
 
-	// Diffuse
+	// register (t0)
 	CD3DX12_DESCRIPTOR_RANGE srvDescriptorTable(
 		D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
 		1,
 		0
 	);
 
-	// SpecularGlossiness
+	// register (t1)
 	CD3DX12_DESCRIPTOR_RANGE srvDescriptorTable1(
 		D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
 		1,
 		1
 	);
 
-	// Normal
+	// register (t2)
 	CD3DX12_DESCRIPTOR_RANGE srvDescriptorTable2(
 		D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
 		1,
@@ -713,11 +723,11 @@ void ToyDX::Renderer::CreatePipelineStateObjects()
 
 	m_PipelineStateObjects.insert
 	(
-		{ "GLTF_Solid", DX12RenderingPipeline::CreatePipelineStateObject
+		{ "PBR_MetallicRoughness", DX12RenderingPipeline::CreatePipelineStateObject
 			(
 				m_RootSignature.Get(),
 				m_DefaultVertexShader->GetByteCode(),
-				m_DefaultPixelShader->GetByteCode(),
+				m_PBR_MetallicRoughness_Pixel->GetByteCode(),
 				*m_AllDrawables[0]->Mesh->GetInputLayout(),
 				rtvFormats,
 				CD3DX12_RASTERIZER_DESC(D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_BACK,
@@ -743,6 +753,9 @@ void ToyDX::Renderer::LoadShaders()
 
 	m_DefaultPixelShader = std::make_shared<Shader>();
 	m_DefaultPixelShader->Compile(L"./data/shaders/DefaultPixel.hlsl", "main", ShaderKind::PIXEL);
+
+	m_PBR_MetallicRoughness_Pixel = std::make_shared<Shader>();
+	m_PBR_MetallicRoughness_Pixel->Compile(L"./data/shaders/PBR_MetallicRoughness_Pixel.hlsl", "main", ShaderKind::PIXEL);
 }
 
 void ToyDX::Renderer::LoadMeshes()
@@ -754,11 +767,11 @@ void ToyDX::Renderer::LoadMeshes()
 	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/chest/scene.gltf"));
 	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/930turbo/scene.gltf"));
 
-	std::unique_ptr<Mesh> mesh = std::make_unique<Mesh>("./data/models/sponza/scene.gltf");
+	std::unique_ptr<Mesh> mesh = std::make_unique<Mesh>("./data/models/metalRoughSpheres/scene.gltf");
 
 	m_TotalMaterialCount += mesh->Data.materials.size();
 	m_TotalTextureCount  += mesh->Data.textures.size();
-	m_TotalDrawableCount  += mesh->Data.Primitives.size();
+	m_TotalDrawableCount += mesh->Data.Primitives.size();
 
 	m_Meshes.push_back(std::move(mesh));
 
@@ -779,7 +792,6 @@ void ToyDX::Renderer::LoadMeshes()
 
 void ToyDX::Renderer::LoadTextures()
 {
-
 	CreateShaderResourceView(m_FallbackTexture, m_CbvSrvHeap.Get(), m_FallbackTexture.SrvHeapIndex);
 
 	int TextureNumber = 1; // Id 0 is reserverd for a fallback texture 
@@ -788,7 +800,7 @@ void ToyDX::Renderer::LoadTextures()
 	{
 		for (auto& texture : mesh->Data.textures)
 		{
-			std::string name = std::string(texture.Name);
+			std::string name = texture.Name ? std::string("Unnamed Texture") : std::string(texture.Name);
 
 			DX12RenderingPipeline::CreateTexture2D(texture.Width, texture.Height, texture.Channels, DXGI_FORMAT_R8G8B8A8_UNORM, texture.data, texture.Resource, texture.UploadHeap,  std::wstring(&name[0], &name[name.size()]));
 

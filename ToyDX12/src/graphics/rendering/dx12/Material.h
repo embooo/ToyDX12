@@ -41,15 +41,17 @@ struct SpecularGlossiness
 
 struct MetallicRoughness
 {
-	DirectX::XMFLOAT4 BaseColorFactor;
-	float MetallicFactor = 0.0f;
-	float RoughnessFactor = 0.25f;
+	DirectX::XMFLOAT4 BaseColor;
+	float Metallic = 0.0f;
+	float Roughness = 0.25f;
 
 	bool hasBaseColorTex = false;
 	bool hasMetallicRoughnessTex = false;
 
 	int hBaseColorTexture = -1;
 	int hMetallicRoughnessTexture = -1;
+
+	int MetallicRoughnessSrvHeapIndex = -1;
 };
 
 struct MaterialProperties
@@ -79,6 +81,8 @@ struct Material
 
 	// Index corresponding to the diffuse texture into the SRV heap
 	int DiffuseSrvHeapIndex = -1; 
+	int BaseColorSrvHeapIndex = -1; 
+
 	int NormalSrvHeapIndex = -1; 
 
 	// Indicate that the material has changed and we need to update the constant buffers

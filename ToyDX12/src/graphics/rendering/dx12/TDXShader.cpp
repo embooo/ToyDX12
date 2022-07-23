@@ -38,7 +38,7 @@ Microsoft::WRL::ComPtr<ID3DBlob> ToyDX::Shader::Compile(const WCHAR* sz_Filename
 	// Compilation
 	ComPtr<ID3DBlob> shaderCompileErrors   = nullptr;
 
-	HRESULT result = D3DCompileFromFile(sz_Filename, nullptr, nullptr, sz_EntryPoint, sz_Target, shaderCompileOptions, 0, m_Bytecode.GetAddressOf(), shaderCompileErrors.GetAddressOf());
+	HRESULT result = D3DCompileFromFile(sz_Filename, nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, sz_EntryPoint, sz_Target, shaderCompileOptions, 0, m_Bytecode.GetAddressOf(), shaderCompileErrors.GetAddressOf());
 
 	if (shaderCompileErrors != nullptr)
 	{

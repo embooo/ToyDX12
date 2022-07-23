@@ -25,7 +25,7 @@ void MeshLoader::LoadGltf(const char* sz_Filename, MeshData* mesh)
 		m_MeshRootPath = m_MeshRootPath.substr(0, m_MeshRootPath.find_last_of('/') + 1).c_str();
 
 
-		LOG_WARN("MESH ROOT PATH : {0}", m_MeshRootPath);
+		//LOG_WARN("MESH ROOT PATH : {0}", m_MeshRootPath);
 
 		if (result == cgltf_result_success)
 		{
@@ -37,6 +37,7 @@ void MeshLoader::LoadGltf(const char* sz_Filename, MeshData* mesh)
 			}
 		}
 
+		LOG_INFO("Loaded : {0}", sz_Filename);
 		LOG_INFO("# Materials : {0}", mesh->materials.size());
 		LOG_INFO("# Textures : {0}", mesh->textures.size());
 
@@ -58,7 +59,7 @@ static void LoadVertices(cgltf_primitive* primitive, MeshData* st_Mesh, const Di
 	std::vector<DirectX::XMFLOAT3> positionsBuffer;
 	std::vector<DirectX::XMFLOAT3> normalsBuffer;
 	std::vector<DirectX::XMFLOAT2> texCoordBuffer;
-	std::vector<DirectX::XMFLOAT3> tangentBuffer;
+	std::vector<DirectX::XMFLOAT4> tangentBuffer;
 	
 	// Build raw buffers containing each attributes components
 	for (int attribIdx = 0; attribIdx < primitive->attributes_count; ++attribIdx)
@@ -69,7 +70,7 @@ static void LoadVertices(cgltf_primitive* primitive, MeshData* st_Mesh, const Di
 		{
 		case cgltf_attribute_type_position:
 		{
-			//LOG_DEBUG("        Positions : {0}", attribute->data->count);
+			////LOG_DEBUG("        Positions : {0}", attribute->data->count);
 			positionsBuffer.resize(attribute->data->count);
 			for (int i = 0; i < attribute->data->count; ++i)
 			{
@@ -80,7 +81,7 @@ static void LoadVertices(cgltf_primitive* primitive, MeshData* st_Mesh, const Di
 
 		case cgltf_attribute_type_normal:
 		{
-			//LOG_DEBUG("        Normals : {0}", attribute->data->count);
+			////LOG_DEBUG("        Normals : {0}", attribute->data->count);
 			normalsBuffer.resize(attribute->data->count);
 			for (int i = 0; i < normalsBuffer.size(); ++i)
 			{
@@ -91,7 +92,7 @@ static void LoadVertices(cgltf_primitive* primitive, MeshData* st_Mesh, const Di
 
 		case cgltf_attribute_type_texcoord:
 		{
-			//LOG_DEBUG("        Normals : {0}", attribute->data->count);
+			////LOG_DEBUG("        Normals : {0}", attribute->data->count);
 			texCoordBuffer.resize(attribute->data->count);
 			for (int i = 0; i < texCoordBuffer.size(); ++i)
 			{
@@ -102,11 +103,11 @@ static void LoadVertices(cgltf_primitive* primitive, MeshData* st_Mesh, const Di
 		
 		case cgltf_attribute_type_tangent:
 		{
-			//LOG_DEBUG("        Tangents : {0}", attribute->data->count);
+			////LOG_DEBUG("        Tangents : {0}", attribute->data->count);
 			tangentBuffer.resize(attribute->data->count);
 			for (int i = 0; i < tangentBuffer.size(); ++i)
 			{
-				cgltf_accessor_read_float(attribute->data, i, &tangentBuffer[i].x, 3);
+				cgltf_accessor_read_float(attribute->data, i, &tangentBuffer[i].x, 4);
 			}
 		}
 		break;
@@ -121,14 +122,14 @@ static void LoadVertices(cgltf_primitive* primitive, MeshData* st_Mesh, const Di
 		{
 			vertex.Pos	     = positionsBuffer[i];
 			vertex.Normal	 = normalsBuffer.empty() ? DirectX::XMFLOAT3{ 0.0, 0.0, 0.0 } : normalsBuffer[i];
-			vertex.Tangent	 = tangentBuffer.empty() ? DirectX::XMFLOAT3{ 0.0, 0.0, 0.0 } : tangentBuffer[i];
+			vertex.Tangent	 = tangentBuffer.empty() ? DirectX::XMFLOAT4{ 0.0, 0.0, 0.0, 0.0 } : tangentBuffer[i];
 			vertex.TexCoord0 = texCoordBuffer.empty() ? DirectX::XMFLOAT2{ 0.0, 0.0 } : texCoordBuffer[i];
 		}
 
 		st_Mesh->Vertices.push_back(vertex);
 	}
 	
-	//LOG_DEBUG("        Vertex buffer size : {0}", st_Mesh.vertices.size());
+	////LOG_DEBUG("        Vertex buffer size : {0}", st_Mesh.vertices.size());
 }
 
 static void LoadIndices(cgltf_primitive* rawPrimitive, Primitive* primitive, MeshData* st_Mesh)
@@ -139,7 +140,7 @@ static void LoadIndices(cgltf_primitive* rawPrimitive, Primitive* primitive, Mes
 		st_Mesh->Indices.push_back(uint16_t(cgltf_accessor_read_index(rawPrimitive->indices, idx)));
 	}
 
-	//LOG_DEBUG("        Index buffer size : {0}", st_Mesh.indices.size());
+	////LOG_DEBUG("        Index buffer size : {0}", st_Mesh.indices.size());
 }
 
 void SetMaterial(MeshData* data, Primitive* primitive, cgltf_material* rawMaterial, MaterialProperties& material)
@@ -191,7 +192,7 @@ int LoadImageFile(MeshData* data, const std::string& rootPath, cgltf_image* imag
 		unsigned char* imgData = stbi_load(path.c_str(), &width, &height, &channels, STBI_rgb_alpha);
 		if (imgData == NULL)
 		{
-			LOG_ERROR("MeshLoader::LoadImageFile : Could not load image at {0}.", path);
+			//LOG_ERROR("MeshLoader::LoadImageFile : Could not load image at {0}.", path);
 			return -1;
 		}
 
@@ -210,7 +211,7 @@ int LoadImageFile(MeshData* data, const std::string& rootPath, cgltf_image* imag
 		
 		data->textureTable[uri] = texture.Id;
 
-		LOG_INFO("MeshLoader::LoadImageFile : Loaded {0} - {1}x{2}x{3}", path.substr(path.find_last_of('/') + 1, path.size()), width, height, channels);
+		//LOG_INFO("MeshLoader::LoadImageFile : Loaded {0} - {1}x{2}x{3}", path.substr(path.find_last_of('/') + 1, path.size()), width, height, channels);
 	}
 
 	return handle;
@@ -246,7 +247,7 @@ void LoadMaterial(cgltf_primitive* rawPrimitive, Primitive* primitive, MeshData*
 
 	if (material->has_pbr_specular_glossiness)
 	{
-		LOG_DEBUG("MATERIAL WORKFLOW: Specular-Glossiness, Name : {0}", material->name);
+		//LOG_DEBUG("MATERIAL WORKFLOW: Specular-Glossiness, Name : {0}", material->name);
 		
 		materialProperties.type = MaterialWorkflowType::SpecularGlossiness;
 		materialProperties.specularGlossiness =
@@ -279,14 +280,14 @@ void LoadMaterial(cgltf_primitive* rawPrimitive, Primitive* primitive, MeshData*
 
 	else if (material->has_pbr_metallic_roughness)
 	{
-		LOG_DEBUG("MATERIAL WORKFLOW: Metallic-Roughness, Name : {0}", material->name ? material->name : "Unnamed");
+		LOG_DEBUG("Material Workflow: Metallic/Roughness, Name : {0}", material->name ? material->name : "Unnamed");
 
 		materialProperties.type = MaterialWorkflowType::MetallicRoughness;
 		materialProperties.metallicRoughness = 
 		{
-			.BaseColorFactor = DirectX::XMFLOAT4(material->pbr_metallic_roughness.base_color_factor),
-			.MetallicFactor = material->pbr_metallic_roughness.metallic_factor,
-			.RoughnessFactor = material->pbr_metallic_roughness.roughness_factor
+			.BaseColor = DirectX::XMFLOAT4(material->pbr_metallic_roughness.base_color_factor),
+			.Metallic = material->pbr_metallic_roughness.metallic_factor,
+			.Roughness = material->pbr_metallic_roughness.roughness_factor
 		};
 
 		// Texture loading
@@ -314,7 +315,7 @@ void LoadMaterial(cgltf_primitive* rawPrimitive, Primitive* primitive, MeshData*
 
 static void LoadPrimitive(cgltf_primitive* primitive, MeshData* st_Mesh, const DirectX::XMMATRIX& currWorldMat)
 {
-	//LOG_DEBUG("      Primitive : {0} attributes, {1} indices", primitive->attributes_count, primitive->indices->count);
+	////LOG_DEBUG("      Primitive : {0} attributes, {1} indices", primitive->attributes_count, primitive->indices->count);
 
 	Primitive p = {.StartIndexLocation = st_Mesh->Indices.size(), .BaseVertexLocation = st_Mesh->Vertices.size(), .WorldMatrix = currWorldMat };
 
@@ -328,7 +329,7 @@ static void LoadPrimitive(cgltf_primitive* primitive, MeshData* st_Mesh, const D
 
 static void LoadMesh(cgltf_mesh* mesh, MeshData* st_Mesh, const DirectX::XMMATRIX& currWorldMat)
 {
-	LOG_DEBUG("    Mesh '{0}': {1} primitives", mesh->name ? mesh->name : "Unnamed", mesh->primitives_count);
+	//LOG_DEBUG("    Mesh '{0}': {1} primitives", mesh->name ? mesh->name : "Unnamed", mesh->primitives_count);
 	
 	for (int i = 0; i < mesh->primitives_count; ++i)
 	{
@@ -346,7 +347,7 @@ void LoadTransform(cgltf_node* p_Node, DirectX::XMMATRIX& currWorldMat)
 		0,  0,  0,  1
 	};
 
-	LOG_DEBUG("TRANSFORM : World");
+	//LOG_DEBUG("TRANSFORM : World");
 	float worldMat[16];
 	cgltf_node_transform_world(p_Node, worldMat);
 	
@@ -354,7 +355,7 @@ void LoadTransform(cgltf_node* p_Node, DirectX::XMMATRIX& currWorldMat)
 
 	for (int i = 0; i < 16; i += 4)
 	{
-		LOG_DEBUG("{0}, {1}, {2}, {3}", worldMat[i], worldMat[i + 1], worldMat[i + 2], worldMat[i + 3]);
+		//LOG_DEBUG("{0}, {1}, {2}, {3}", worldMat[i], worldMat[i + 1], worldMat[i + 2], worldMat[i + 3]);
 	}
 }
 
@@ -364,12 +365,12 @@ void MeshLoader::ProcessGltfNode(bool bIsChild, cgltf_node* p_Node, MeshData* me
 
 	if (bIsChild)
 	{
-		LOG_DEBUG("    Child Node : {0}, Children : {1}", p_Node->name ? p_Node->name : "Unnamed", p_Node->children_count);
+		//LOG_DEBUG("    Child Node : {0}, Children : {1}", p_Node->name ? p_Node->name : "Unnamed", p_Node->children_count);
 	}
 	else
 	{
-		LOG_DEBUG("=====================================");
-		LOG_DEBUG("Node : {0}, Children : {1}", p_Node->name ? p_Node->name : "Unnamed", p_Node->children_count);
+		//LOG_DEBUG("=====================================");
+		//LOG_DEBUG("Node : {0}, Children : {1}", p_Node->name ? p_Node->name : "Unnamed", p_Node->children_count);
 	}
 
 	if (p_Node->mesh)
@@ -382,7 +383,7 @@ void MeshLoader::ProcessGltfNode(bool bIsChild, cgltf_node* p_Node, MeshData* me
 	{
 		if (j == 0)
 		{
-			LOG_DEBUG("  Parent Node : {0}", p_Node->name ? p_Node->name : "Unnamed");
+			//LOG_DEBUG("  Parent Node : {0}", p_Node->name ? p_Node->name : "Unnamed");
 		}
 		ProcessGltfNode(true, p_Node->children[j], mesh);
 	}
