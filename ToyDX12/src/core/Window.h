@@ -59,6 +59,7 @@ public:
 	void OnKeyPressed(WPARAM buttonState, LPARAM lParam);
 
 	bool bIsResizing = false;
+	bool bHasFocus = false;
 
 private:
 	float m_fAspectRatio;

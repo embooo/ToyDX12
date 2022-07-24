@@ -41,6 +41,8 @@ public:
 	bool bIsPaused = false;
 	float GetWindowAspectRatio() { return mp_Window->GetAspectRatio(); }
 
+	bool WindowHasFocus() { return mp_Window->bHasFocus; }
+
 	bool bFirstClick = false;
 	int m_LastClickPosX = 0;
 	int m_LastClickPosY = 0;

@@ -185,6 +185,14 @@ LRESULT Win32Window::WndProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         return 0;
     }
 
+    case WM_SETFOCUS:
+        bHasFocus = true;
+        break;
+
+    case WM_KILLFOCUS:
+        bHasFocus = false;
+        break;
+
     default:
         // Handle any messages the switch statement didn't.
         return DefWindowProc(s_HWND, uMsg, wParam, lParam);
