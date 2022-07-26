@@ -57,6 +57,17 @@ void DX12Device::EnableShaderBasedValidation()
 	spDebugController1->SetEnableGPUBasedValidation(true);
 }
 
+void DX12Device::CheckRaytracingSupport()
+{
+	// https://developer.nvidia.com/rtx/raytracing/dxr/dx12-raytracing-tutorial-part-1
+	D3D12_FEATURE_DATA_D3D12_OPTIONS5 options5 = {};
+	ThrowIfFailed(mp_Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &options5, sizeof(options5)));
+	if (options5.RaytracingTier < D3D12_RAYTRACING_TIER_1_0)
+	{
+		throw std::runtime_error("Raytracing not supported on device");
+	}
+}
+
 //*********************************************************
 
 UINT DX12Device::GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE e_Type) const

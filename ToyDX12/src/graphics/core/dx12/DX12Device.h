@@ -14,15 +14,16 @@ public:
 	void Terminate() override;
 	void EnableDebugLayer();
 	void EnableShaderBasedValidation(); // GPU-based validation
+	void CheckRaytracingSupport();
 
 	UINT GetDescriptorSize(D3D12_DESCRIPTOR_HEAP_TYPE e_Type) const;
 
-	ID3D12Device4& GetDevice() const { return *mp_Device.Get(); }
+	ID3D12Device5& GetDevice() const { return *mp_Device.Get(); }
 	IDXGIFactory6& GetFactory() const { return *mp_DXGIFactory6.Get(); }
 
 	~DX12Device() override = default;
 protected:
-	ComPtr<ID3D12Device4> mp_Device;
+	ComPtr<ID3D12Device5> mp_Device;
 	ComPtr<IDXGIFactory6> mp_DXGIFactory6;
 };
 
