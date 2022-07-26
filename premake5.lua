@@ -25,6 +25,7 @@ workspace "ToyEngine"
 	LibPaths["cgltf"] = FilePaths.Extern .. "cgltf"
 	LibPaths["stb"] = FilePaths.Extern .. "stb"
 	LibPaths["DirectXTex"] = FilePaths.Extern .. "DirectXTex"
+	LibPaths["DXRHelpers"] = FilePaths.Extern .. "DXRHelpers"
 
 	BuildPaths = {}	  
 	BuildPaths["ToyDX12"] = "ToyDX12/build/"
@@ -56,7 +57,8 @@ for i, name in ipairs(projects) do
 			FilePaths.Src .. "**.cpp",
 			FilePaths.Projects .. name .. "/**.h",
 			FilePaths.Projects .. name .. "/**.cpp",
-			LibPaths["DirectXTex"] .. "/DirectXTexUtil.cpp"
+			LibPaths["DirectXTex"] .. "/DirectXTexUtil.cpp",
+			LibPaths["DXRHelpers"] .. "/*.cpp"
 		}
 
 		includedirs
@@ -68,7 +70,8 @@ for i, name in ipairs(projects) do
 			LibPaths["DirectXMath"],
 			LibPaths["cgltf"],
 			LibPaths["stb"],
-			LibPaths["DirectXTex"] 
+			LibPaths["DirectXTex"],
+			LibPaths["DXRHelpers"]
 		}
 
 		links
@@ -87,6 +90,9 @@ for i, name in ipairs(projects) do
 			flags { 'NoPCH' }
 
 		filter { "files:" .. LibPaths["DirectXTex"] .. "/**.cpp" }
+			flags { 'NoPCH' }
+
+		filter { "files:" .. LibPaths["DXRHelpers"] .. "/**.cpp" }
 			flags { 'NoPCH' }
 		
 		targetdir	("ToyDX12/build/bin/" .. outputdir )
