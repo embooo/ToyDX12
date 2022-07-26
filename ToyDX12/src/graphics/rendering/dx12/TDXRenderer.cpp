@@ -36,8 +36,7 @@ void ToyDX::Renderer::Initialize()
 
 	LoadMaterials();
 	BuildDrawables();
-
-	// Create a mesh
+	
 	LoadShaders();
 	CreateStaticSamplers();
 
@@ -188,7 +187,7 @@ std::vector<UINT8> ToyDX::Renderer::CreateFallbackTexture()
 	return data;
 }
 
-void ToyDX::Renderer::RenderOpaques(ID3D12GraphicsCommandList* cmdList, std::vector<Drawable*>& opaques)
+void ToyDX::Renderer::RenderDrawables(ID3D12GraphicsCommandList& r_cmdList, std::vector<Drawable*>& opaques)
 {
 	size_t NumFrameResources = m_FrameResources.size();
 	size_t NumMaterials = m_Materials.size();
@@ -198,21 +197,21 @@ void ToyDX::Renderer::RenderOpaques(ID3D12GraphicsCommandList* cmdList, std::vec
 	for (size_t i=0; i < NumOpaques; ++i)
 	{
 		Drawable* obj = m_AllDrawables[i].get();
-		cmdList->IASetPrimitiveTopology(obj->PrimitiveTopology);
-		cmdList->IASetVertexBuffers(0, 1, &obj->Mesh->GetVertexBufferView());
-		cmdList->IASetIndexBuffer(&obj->Mesh->GetIndexBufferView());
+		r_cmdList.IASetPrimitiveTopology(obj->PrimitiveTopology);
+		r_cmdList.IASetVertexBuffers(0, 1, &obj->Mesh->GetVertexBufferView());
+		r_cmdList.IASetIndexBuffer(&obj->Mesh->GetIndexBufferView());
 		
 		// Offset in the descriptor heap for this drawable's per object constant buffer
 		size_t perObjectCBDescriptor = m_CurrentFrameResourceIdx * NumOpaques + obj->PerObjectCbIndex;
 		D3D12_GPU_DESCRIPTOR_HANDLE objectDescriptorTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(perObjectCBDescriptor, DX12RenderingPipeline::CBV_SRV_UAV_Size);
-		cmdList->SetGraphicsRootDescriptorTable(0, objectDescriptorTable);
+		r_cmdList.SetGraphicsRootDescriptorTable(0, objectDescriptorTable);
 
 		// Set material
 		{
 			size_t matDescriptor = (m_IndexOf_FirstMaterialCbv_DescriptorHeap + m_CurrentFrameResourceIdx * NumMaterials) + obj->material->CBIndex;
 
 			D3D12_GPU_DESCRIPTOR_HANDLE matDescriptorTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(matDescriptor, DX12RenderingPipeline::CBV_SRV_UAV_Size);
-			cmdList->SetGraphicsRootDescriptorTable(1, matDescriptorTable);
+			r_cmdList.SetGraphicsRootDescriptorTable(1, matDescriptorTable);
 		}
 
 		// Set material textures
@@ -225,8 +224,8 @@ void ToyDX::Renderer::RenderOpaques(ID3D12GraphicsCommandList* cmdList, std::vec
 				// SpecularGlossiness
 				D3D12_GPU_DESCRIPTOR_HANDLE specGlossTextureTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(obj->material->properties.specularGlossiness.SpecGlossSrvHeapIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
 
-				cmdList->SetGraphicsRootDescriptorTable(3, diffuseTextureTable);
-				cmdList->SetGraphicsRootDescriptorTable(4, specGlossTextureTable);
+				r_cmdList.SetGraphicsRootDescriptorTable(3, diffuseTextureTable);
+				r_cmdList.SetGraphicsRootDescriptorTable(4, specGlossTextureTable);
 			}
 			else if (obj->material->properties.type == MaterialWorkflowType::MetallicRoughness)
 			{
@@ -235,13 +234,13 @@ void ToyDX::Renderer::RenderOpaques(ID3D12GraphicsCommandList* cmdList, std::vec
 
 				D3D12_GPU_DESCRIPTOR_HANDLE metalRough = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(obj->material->properties.metallicRoughness.MetallicRoughnessSrvHeapIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
 
-				cmdList->SetGraphicsRootDescriptorTable(3, baseColor);
-				cmdList->SetGraphicsRootDescriptorTable(4, metalRough);
+				r_cmdList.SetGraphicsRootDescriptorTable(3, baseColor);
+				r_cmdList.SetGraphicsRootDescriptorTable(4, metalRough);
 			}
 
 			// Normal
 			D3D12_GPU_DESCRIPTOR_HANDLE normalTextureTable = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(obj->material->NormalSrvHeapIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
-			cmdList->SetGraphicsRootDescriptorTable(5, normalTextureTable);
+			r_cmdList.SetGraphicsRootDescriptorTable(5, normalTextureTable);
 		}
 
 		// Draw
@@ -250,12 +249,12 @@ void ToyDX::Renderer::RenderOpaques(ID3D12GraphicsCommandList* cmdList, std::vec
 			for (size_t p = 0; p < obj->Mesh->Data.Primitives.size(); ++p)
 			{
 				Primitive* prim = &obj->Mesh->Data.Primitives[p];
-				cmdList->DrawIndexedInstanced(prim->NumIndices, 1, prim->StartIndexLocation, prim->BaseVertexLocation, 0);
+				r_cmdList.DrawIndexedInstanced(prim->NumIndices, 1, prim->StartIndexLocation, prim->BaseVertexLocation, 0);
 			}
 		}
 		else
 		{
-			cmdList->DrawIndexedInstanced(obj->NumIndices, 1, obj->StartIndexLocation, obj->BaseVertexLocation, 0);
+			r_cmdList.DrawIndexedInstanced(obj->NumIndices, 1, obj->StartIndexLocation, obj->BaseVertexLocation, 0);
 		}
 	}
 }
@@ -263,7 +262,7 @@ void ToyDX::Renderer::RenderOpaques(ID3D12GraphicsCommandList* cmdList, std::vec
 void ToyDX::Renderer::Render()
 {
 	ID3D12CommandAllocator& rst_CommandAllocator    = DX12RenderingPipeline::GetCommandAllocator();
-	ID3D12GraphicsCommandList& rst_CommandList      = DX12RenderingPipeline::GetCommandList();
+	ID3D12GraphicsCommandList& r_CmdList      = DX12RenderingPipeline::GetCommandList();
 	ID3D12CommandQueue& rst_CommandQueue            = DX12RenderingPipeline::GetCommandQueue();
 
 	// Reuse the memory associated with command recording.
@@ -273,58 +272,46 @@ void ToyDX::Renderer::Render()
 
 	// A command list can be reset after it has been added to the
 	// command queue via ExecuteCommandList. Reusing the command list reuses memory.
-	ThrowIfFailed(rst_CommandList.Reset(m_CurrentFrameResource->cmdListAllocator.Get(), GetPipelineState("PBR_MetallicRoughness")));
+	ThrowIfFailed(r_CmdList.Reset(m_CurrentFrameResource->cmdListAllocator.Get(), nullptr));
 
 	// Indicate a state transition on the resource usage.
 	ID3D12Resource* backBufferResource = m_hRenderingPipeline->GetCurrentBackBuffer();
 	ID3D12Resource* depthStencilResource = m_hRenderingPipeline->GetDepthStencil();
 	D3D12_CPU_DESCRIPTOR_HANDLE backBufferView = m_hRenderingPipeline->GetCurrentBackBufferView();
+	D3D12_CPU_DESCRIPTOR_HANDLE depthStencilView = m_hRenderingPipeline->GetDepthStencilView();
+
 
 	CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBufferResource, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	rst_CommandList.ResourceBarrier(1, &barrier);
+	r_CmdList.ResourceBarrier(1, &barrier);
 
 	// Set the viewport and scissor rect. This needs to be reset
 	// whenever the command list is reset.
-	rst_CommandList.RSSetViewports(1, &m_hRenderingPipeline->GetViewport());
-	rst_CommandList.RSSetScissorRects(1, &m_hRenderingPipeline->GetScissorRect());
+	r_CmdList.RSSetViewports(1, &m_hRenderingPipeline->GetViewport());
+	r_CmdList.RSSetScissorRects(1, &m_hRenderingPipeline->GetScissorRect());
 
-	// Clear the back buffer and depth buffer.
-	rst_CommandList.ClearRenderTargetView(backBufferView, m_hRenderingPipeline->RTClearValues.Color, 0, nullptr);
-
-	D3D12_CPU_DESCRIPTOR_HANDLE depthStencilView = m_hRenderingPipeline->GetDepthStencilView();
-	rst_CommandList.ClearDepthStencilView(depthStencilView, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
+	r_CmdList.ClearDepthStencilView(depthStencilView, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
 		m_hRenderingPipeline->DSClearValues.DepthStencil.Depth,
 		m_hRenderingPipeline->DSClearValues.DepthStencil.Stencil,
 		0, nullptr); // Clear entire render target
 
-	// Specify the buffers we are going to render to.
-	rst_CommandList.OMSetRenderTargets(1, &backBufferView, true, &depthStencilView);
-
-	ID3D12DescriptorHeap* descriptorHeaps[] = { m_CbvSrvHeap.Get() };
-	rst_CommandList.SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
-
-	rst_CommandList.SetGraphicsRootSignature(m_RootSignature.Get());
-
-	// Build and submit command lists for this frame.
+	if (m_Raster)
 	{
-		// Set per pass constant buffer
-		int passCbvIndex = m_IndexOf_FirstPerPassCbv_DescriptorHeap + m_CurrentFrameResourceIdx;
-		D3D12_GPU_DESCRIPTOR_HANDLE passCbvDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(passCbvIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
-		rst_CommandList.SetGraphicsRootDescriptorTable(2, passCbvDescriptor);
-
-		// Set Per Object Constant Buffer and render
-		RenderOpaques(&rst_CommandList, m_OpaqueDrawables);
+		RenderRasterized(r_CmdList, backBufferView, depthStencilView);
+	}
+	else
+	{
+		RenderRaytraced(r_CmdList, backBufferView, depthStencilView);
 	}
 
 	// Indicate a state transition on the resource usage.
 	barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBufferResource, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-	rst_CommandList.ResourceBarrier(1, &barrier);
+	r_CmdList.ResourceBarrier(1, &barrier);
 
 	// Stop recording commands
-	ThrowIfFailed(rst_CommandList.Close());
+	ThrowIfFailed(r_CmdList.Close());
 
 	// Add command list to GPU command queue for execution
-	ID3D12CommandList* a_CommandLists[] = { &rst_CommandList };
+	ID3D12CommandList* a_CommandLists[] = { &r_CmdList };
 	rst_CommandQueue.ExecuteCommandLists(_countof(a_CommandLists), a_CommandLists);
 
 	// Present then swap front and back buffer
@@ -335,6 +322,41 @@ void ToyDX::Renderer::Render()
 	m_CurrentFrameResource->FenceValue = ++m_CurrentFence;
 	rst_CommandQueue.Signal(DX12RenderingPipeline::s_Fence.Get(), m_CurrentFence);
 }
+
+
+void ToyDX::Renderer::RenderRaytraced(ID3D12GraphicsCommandList& r_CmdList, D3D12_CPU_DESCRIPTOR_HANDLE backbufferView, D3D12_CPU_DESCRIPTOR_HANDLE depthStencilView)
+{
+	float dxrClearColor[4] = { 0.0f, 1.0f, 0.0f, 1.0f };
+	r_CmdList.ClearRenderTargetView(backbufferView, dxrClearColor, 0, nullptr);
+}
+
+void ToyDX::Renderer::RenderRasterized(ID3D12GraphicsCommandList& r_CmdList, D3D12_CPU_DESCRIPTOR_HANDLE backbufferView, D3D12_CPU_DESCRIPTOR_HANDLE depthStencilView)
+{
+	// Clear the back buffer and depth buffer.
+	r_CmdList.ClearRenderTargetView(backbufferView, m_hRenderingPipeline->RTClearValues.Color, 0, nullptr);
+
+	r_CmdList.SetPipelineState(m_PSOTable[PsoList::PbrMetallicRoughness].Get());
+
+	// Set descriptor heaps containing textures, materials
+	ID3D12DescriptorHeap* descriptorHeaps[] = { m_CbvSrvHeap.Get() };
+	r_CmdList.SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+	r_CmdList.SetGraphicsRootSignature(m_RootSignature.Get());
+
+	// Build and submit command lists for this frame.
+	{
+		// Set per pass constant buffer
+		int passCbvIndex = m_IndexOf_FirstPerPassCbv_DescriptorHeap + m_CurrentFrameResourceIdx;
+		D3D12_GPU_DESCRIPTOR_HANDLE passCbvDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_CbvSrvHeap->GetGPUDescriptorHandleForHeapStart()).Offset(passCbvIndex, DX12RenderingPipeline::CBV_SRV_UAV_Size);
+		r_CmdList.SetGraphicsRootDescriptorTable(2, passCbvDescriptor);
+
+		// Specify the buffers we are going to render to.
+		r_CmdList.OMSetRenderTargets(1, &backbufferView, true, &depthStencilView);
+
+		// Set Per Object Constant Buffer and render
+		RenderDrawables(r_CmdList, m_OpaqueDrawables);
+	}
+}
+
 
 void ToyDX::Renderer::AdvanceToNextFrameResource()
 {
@@ -690,73 +712,65 @@ void ToyDX::Renderer::CreatePipelineStateObjects()
 {
 	DXGI_FORMAT rtvFormats[] = { DXGI_FORMAT_R8G8B8A8_UNORM };
 
-	m_PipelineStateObjects.insert
+	m_PSOTable[PsoList::Wireframe] = DX12RenderingPipeline::CreatePipelineStateObject
 	(
-		{ "Wireframe", DX12RenderingPipeline::CreatePipelineStateObject
-			(
-				m_RootSignature.Get(),
-				m_DefaultVertexShader->GetByteCode(),
-				m_DefaultPixelShader->GetByteCode(),
-				*m_AllDrawables[0]->Mesh->GetInputLayout(),
-				rtvFormats,
-				CD3DX12_RASTERIZER_DESC (D3D12_FILL_MODE_WIREFRAME, D3D12_CULL_MODE_NONE,
-				FALSE /* FrontCounterClockwise */,
-				D3D12_DEFAULT_DEPTH_BIAS,
-				D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
-				D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
-				TRUE /* DepthClipEnable */,
-				TRUE /* MultisampleEnable */,
-				FALSE /* AntialiasedLineEnable */,
-				0 /* ForceSampleCount */,
-				D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF),
-				_countof(rtvFormats)
-			) 
-		}
+		m_RootSignature.Get(),
+		m_ShaderTable[ShaderList::Default_Vertex].GetByteCode(),
+		m_ShaderTable[ShaderList::Default_Pixel].GetByteCode(),
+		*m_AllDrawables[0]->Mesh->GetInputLayout(),
+		rtvFormats,
+		CD3DX12_RASTERIZER_DESC(D3D12_FILL_MODE_WIREFRAME, D3D12_CULL_MODE_NONE,
+			FALSE /* FrontCounterClockwise */,
+			D3D12_DEFAULT_DEPTH_BIAS,
+			D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
+			D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
+			TRUE /* DepthClipEnable */,
+			TRUE /* MultisampleEnable */,
+			FALSE /* AntialiasedLineEnable */,
+			0 /* ForceSampleCount */,
+			D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF),
+		_countof(rtvFormats)
 	);
 
-	m_PipelineStateObjects.at("Wireframe")->SetName(L"Wireframe");
+	m_PSOTable[PsoList::Wireframe]->SetName(L"Wireframe");
 
 	/////////////////////////////////////////////////////////////////////////
-
-	m_PipelineStateObjects.insert
+	
+	m_PSOTable[PsoList::PbrMetallicRoughness] = DX12RenderingPipeline::CreatePipelineStateObject
 	(
-		{ "PBR_MetallicRoughness", DX12RenderingPipeline::CreatePipelineStateObject
-			(
-				m_RootSignature.Get(),
-				m_DefaultVertexShader->GetByteCode(),
-				m_PBR_MetallicRoughness_Pixel->GetByteCode(),
-				*m_AllDrawables[0]->Mesh->GetInputLayout(),
-				rtvFormats,
-				CD3DX12_RASTERIZER_DESC(D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_FRONT,
-				FALSE /* FrontCounterClockwise */,
-				D3D12_DEFAULT_DEPTH_BIAS,
-				D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
-				D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
-				TRUE /* DepthClipEnable */,
-				TRUE /* MultisampleEnable */,
-				FALSE /* AntialiasedLineEnable */,
-				0 /* ForceSampleCount */,
-				D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF),
-				_countof(rtvFormats)
-			)
-		}
+		m_RootSignature.Get(),
+		m_ShaderTable[ShaderList::Default_Vertex].GetByteCode(),
+		m_ShaderTable[ShaderList::PbrMetallicRoughness_Pixel].GetByteCode(),
+		*m_AllDrawables[0]->Mesh->GetInputLayout(),
+		rtvFormats,
+		CD3DX12_RASTERIZER_DESC(D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_FRONT,
+			FALSE /* FrontCounterClockwise */,
+			D3D12_DEFAULT_DEPTH_BIAS,
+			D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
+			D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
+			TRUE /* DepthClipEnable */,
+			TRUE /* MultisampleEnable */,
+			FALSE /* AntialiasedLineEnable */,
+			0 /* ForceSampleCount */,
+			D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF),
+		_countof(rtvFormats)
 	);
-
-	m_PipelineStateObjects.at("PBR_MetallicRoughness")->SetName(L"PBR_MetallicRoughness");
+	
+	m_PSOTable[PsoList::PbrMetallicRoughness]->SetName(L"PBR_MetallicRoughness");
 }
 
-void ToyDX::Renderer::HotReloadShaders()
+void ToyDX::Renderer::RecompileShaders()
 {
 	DXGI_FORMAT rtvFormats[] = { DXGI_FORMAT_R8G8B8A8_UNORM };
 
-	m_PBR_MetallicRoughness_Pixel->Compile(L"./data/shaders/PBR_MetallicRoughness_Pixel.hlsl", "main", ShaderKind::PIXEL);
+	m_ShaderTable[ShaderList::PbrMetallicRoughness_Pixel].Compile(L"./data/shaders/PBR_MetallicRoughness_Pixel.hlsl", "main", ShaderKind::PIXEL);
 
-	m_PipelineStateObjects.at("PBR_MetallicRoughness") =
+	m_PSOTable[PsoList::PbrMetallicRoughness] =
 		DX12RenderingPipeline::CreatePipelineStateObject
 		(
 			m_RootSignature.Get(),
-			m_DefaultVertexShader->GetByteCode(),
-			m_PBR_MetallicRoughness_Pixel->GetByteCode(),
+			m_ShaderTable[ShaderList::Default_Vertex].GetByteCode(),
+			m_ShaderTable[ShaderList::PbrMetallicRoughness_Pixel].GetByteCode(),
 			*m_AllDrawables[0]->Mesh->GetInputLayout(),
 			rtvFormats,
 
@@ -776,14 +790,15 @@ void ToyDX::Renderer::HotReloadShaders()
 
 void ToyDX::Renderer::LoadShaders()
 {
-	m_DefaultVertexShader = std::make_shared<Shader>();
-	m_DefaultVertexShader->Compile(L"./data/shaders/DefaultVertex.hlsl", "main", ShaderKind::VERTEX);
+	m_ShaderTable[ShaderList::Default_Vertex].Compile(L"./data/shaders/DefaultVertex.hlsl", "main", ShaderKind::VERTEX);
+	m_ShaderTable[ShaderList::Default_Pixel].Compile(L"./data/shaders/DefaultPixel.hlsl", "main", ShaderKind::PIXEL);
 
-	m_DefaultPixelShader = std::make_shared<Shader>();
-	m_DefaultPixelShader->Compile(L"./data/shaders/DefaultPixel.hlsl", "main", ShaderKind::PIXEL);
+	m_ShaderTable[ShaderList::PbrMetallicRoughness_Pixel].Compile(L"./data/shaders/PBR_MetallicRoughness_Pixel.hlsl", "main", ShaderKind::PIXEL);
+}
 
-	m_PBR_MetallicRoughness_Pixel = std::make_shared<Shader>();
-	m_PBR_MetallicRoughness_Pixel->Compile(L"./data/shaders/PBR_MetallicRoughness_Pixel.hlsl", "main", ShaderKind::PIXEL);
+void ToyDX::Renderer::ToggleRenderMode()
+{
+	m_Raster = !m_Raster;
 }
 
 void ToyDX::Renderer::LoadMeshes()
@@ -795,7 +810,7 @@ void ToyDX::Renderer::LoadMeshes()
 	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/chest/scene.gltf"));
 	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/930turbo/scene.gltf"));
 
-	std::unique_ptr<Mesh> mesh = std::make_unique<Mesh>("./data/models/camera/scene.gltf");
+	std::unique_ptr<Mesh> mesh = std::make_unique<Mesh>("./data/models/metalRoughSpheres/scene.gltf");
 
 	m_TotalMaterialCount += mesh->Data.materials.size();
 	m_TotalTextureCount  += mesh->Data.textures.size();

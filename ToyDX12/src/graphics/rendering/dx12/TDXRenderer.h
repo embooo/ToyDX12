@@ -5,6 +5,7 @@
 #include "FrameResource.h"
 #include "Drawable.h"
 #include "Timer.h"
+#include "TDXShader.h"
 
 class DX12RenderingPipeline;
 
@@ -44,10 +45,23 @@ struct MetallicRoughnessMaterial
 	float Roughness = 1.0f;
 };
 
+enum PsoList
+{
+	Wireframe = 0,
+	PbrMetallicRoughness = 1,
+	PsoCount
+};
+
+enum ShaderList
+{
+	Default_Vertex = 0,
+	Default_Pixel  = 1,
+	PbrMetallicRoughness_Pixel = 2,
+	ShaderCount
+};
 
 namespace ToyDX
 {
-	class Shader;
 	class UploadBuffer;
 	class Mesh;
 	class Camera;
@@ -66,24 +80,26 @@ namespace ToyDX
 		void UpdatePerPassCB();
 		void UpdateMaterialCBs();
 
-		std::vector<UINT8>  CreateFallbackTexture();
 
-		void RenderOpaques(ID3D12GraphicsCommandList* cmdList, std::vector<Drawable*>& drawables);
-		void HotReloadShaders();
+		void RenderDrawables(ID3D12GraphicsCommandList& r_cmdList, std::vector<Drawable*>& drawables);
+		void RecompileShaders();
 		void CreatePipelineStateObjects();
 		void AdvanceToNextFrameResource();
 		FrameResource* GetCurrentFrameResource() { return m_CurrentFrameResource; }
 		
 		~Renderer() = default;
+
+	private:
+		std::unordered_map <int, Texture*> m_Textures;
+		Texture m_FallbackTexture;
+		std::vector<UINT8>  CreateFallbackTexture();
 	public:
 		void SetRasterizerState(bool bWireframe = false, bool bBackFaceCulling = true);
-		void SetPipelineState(ID3D12PipelineState* p_Pso) { m_CurrentPSO = p_Pso; };
 		void SetCameraHandle(Camera* handle) { m_CameraHandle = handle; }
 		void SetTimerHandle(Timer* handle) { m_TimerHandle = handle; }
 		void SetRenderingPipelineHandle(DX12RenderingPipeline* handle) { m_hRenderingPipeline = handle; }
 	public:
-		ID3D12PipelineState* GetPipelineState(const char* name) { return m_PipelineStateObjects.at(name).Get(); };
-		UploadBuffer* GetConstantBuffer() { return m_ConstantBuffer.get(); };
+		ID3D12PipelineState* GetPipelineState(PsoList e_PsoName) { return m_PSOTable[e_PsoName].Get(); };
 
 	protected:
 		std::vector< std::unique_ptr<Drawable>> m_AllDrawables;
@@ -91,12 +107,8 @@ namespace ToyDX
 		std::vector<std::unique_ptr<Mesh>> m_Meshes;
 		std::unordered_map <std::string, std::unique_ptr<Material>> m_Materials;
 
-		// SrvStartIndex : index of the first SRV in the descriptor heap
-		// SrvIndexFromStart : index of the current SRV relative to SrvStartIndex
 		void CreateShaderResourceView(const Texture& texture, ID3D12DescriptorHeap* CbvSrvUavHeap, int SrvIndexInDescriptorHeap);
 
-		Texture m_FallbackTexture;
-		std::unordered_map <int, Texture*> m_Textures;
 		
 		Camera* m_CameraHandle;
 		Timer* m_TimerHandle;
@@ -120,7 +132,6 @@ namespace ToyDX
 		int m_TotalTextureCount = 1; 
 		int m_TotalDrawableCount = 0;
 
-
 		void BuildFrameResources();
 		void CreateDescriptorHeap_Cbv_Srv();
 		void CreateStaticSamplers();
@@ -136,30 +147,27 @@ namespace ToyDX
 
 		UINT64 m_CurrentFence = 0;
 	protected:
-		// Constant buffers, textures
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_CbvSrvHeap;
-
-		// Constant buffer 
-		std::unique_ptr<UploadBuffer> m_ConstantBuffer;
 
 	protected:
 		void LoadShaders();
-		
-		std::shared_ptr<Shader> m_DefaultVertexShader = nullptr;
-		std::shared_ptr<Shader> m_DefaultPixelShader = nullptr;
+		Shader m_ShaderTable[ShaderList::ShaderCount];
 
-		std::shared_ptr<Shader> m_PBR_SpecularGlossiness_Pixel = nullptr;
-		std::shared_ptr<Shader> m_PBR_MetallicRoughness_Pixel = nullptr;
 	protected:
 		CD3DX12_RASTERIZER_DESC m_RasterizerState;
 
-
-		std::unordered_map<const char*, Microsoft::WRL::ComPtr<ID3D12PipelineState>> m_PipelineStateObjects;
-
-		ID3D12PipelineState* m_CurrentPSO;
-
 		DX12RenderingPipeline* m_hRenderingPipeline;
+
+		Microsoft::WRL::ComPtr<ID3D12PipelineState> m_PSOTable[PsoList::PsoCount];
+
+	protected:
+		bool m_Raster = true;
+		void RenderRaytraced(ID3D12GraphicsCommandList& r_CmdList,  D3D12_CPU_DESCRIPTOR_HANDLE backbufferView, D3D12_CPU_DESCRIPTOR_HANDLE depthStencilView);
+		void RenderRasterized(ID3D12GraphicsCommandList& r_CmdList, D3D12_CPU_DESCRIPTOR_HANDLE backbufferView, D3D12_CPU_DESCRIPTOR_HANDLE depthStencilView);
+	public:
+		void ToggleRenderMode();	// Toggle between raytraced or rasterized graphics
 	};
 }
+
 
 

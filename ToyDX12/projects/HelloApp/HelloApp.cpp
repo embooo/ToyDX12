@@ -111,8 +111,13 @@ void HelloApp::OnKeyPressed(WPARAM key, LPARAM lParam)
 	{
 	case 'R':
 		LOG_INFO("Reload shaders.");
-		m_Renderer->HotReloadShaders();
+		m_Renderer->RecompileShaders();
 		break;
+	case 'X':
+	{
+		LOG_INFO("Switched render mode.");
+		m_Renderer->ToggleRenderMode();
+	}
 	case VK_DOWN:
 		m_Camera.AddMoveState(CameraState::MoveBackward);
 		break;
