@@ -9,25 +9,30 @@ float NormalDistributionFunction(float NdotH, float m)
 
 float GGX(float NdotH, float r)
 {
-    const float r2 = r * r;
-    const float d = (NdotH * NdotH) * (r2 - 1) + 1;
-    
-    return (r2 * r2) / (PI * d * d);
+    float r2 = r * r;
+    float d = ( (NdotH * (r2 - 1)) * NdotH + 1) ;
+
+    return r2 / (PI * d * d);
 }
 
-float Schlick(float F0, float cosTheta)
+float3 Schlick(float3 F0, float cosTheta)
 {
-    return F0 + (1 - F0) * pow((1 - cosTheta), 5);
+    return F0 + (float3(1.0f, 1.0f, 1.0f) - F0) * pow((1.0f - cosTheta), 5.0f);
 }
 
-float Fresnel(float F0, float3 cDiffuse, float HdotV, float NdotH, float roughness)
+float3 Fresnel(float F0, float3 cDiffuse, float HdotV, float NdotH, float roughness)
 {
     // HdotV : angle between micro-facet normal H and view direction V
     return Schlick(F0, HdotV) * NormalDistributionFunction(NdotH, roughness);
 }
 
-float SmithGeometricOcclusion(float NdotV, float r)
+float SmithGeometricOcclusion(float NdotL, float NdotV, float r)
 {
-    const float r2 = r * r;
-    return (2 * r2) / (NdotV + sqrt(r2 + (1 - r2) * (NdotV * NdotV)));
+    float alpha = r * r;
+    float alphaSq = alpha * alpha;
+
+    float G1_NdotV = (2.0f * NdotV) / (NdotV + sqrt(alphaSq + (1 - alphaSq) * (NdotV * NdotV)));
+    float G1_NdotL = (2.0f * NdotL) / (NdotL + sqrt(alphaSq + (1 - alphaSq) * (NdotL * NdotL)));
+
+    return G1_NdotV * G1_NdotL;
 }

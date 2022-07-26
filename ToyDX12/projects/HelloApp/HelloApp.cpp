@@ -52,8 +52,11 @@ void HelloApp::Update(double deltaTime)
 void HelloApp::Update(const Timer* const timer)
 {
 	m_DeltaTime = timer->GetDeltaTime();
-
-	UpdateCamera(m_DeltaTime);
+	
+	if (WindowHasFocus())
+	{
+		UpdateCamera(m_DeltaTime);
+	}
 
 	m_Renderer->UpdateFrameResource();
 }
@@ -104,21 +107,22 @@ void HelloApp::OnMouseMove(WPARAM buttonState, int xPos, int yPos)
 
 void HelloApp::OnKeyPressed(WPARAM key, LPARAM lParam)
 {
-	//switch (key)
-	//{
-	//case VK_UP:
-	//	m_Camera.AddMoveState(CameraState::MoveForward);
-	//	break;
-	//case VK_DOWN:
-	//	m_Camera.AddMoveState(CameraState::MoveBackward);
-	//	break;
-	//case VK_LEFT:
-	//	m_Camera.AddMoveState(CameraState::MoveLeft);
-	//	break;
-	//case VK_RIGHT:
-	//	m_Camera.AddMoveState(CameraState::MoveRight);
-	//	break;
-	//}
+	switch (key)
+	{
+	case 'R':
+		LOG_INFO("Reload shaders.");
+		m_Renderer->HotReloadShaders();
+		break;
+	case VK_DOWN:
+		m_Camera.AddMoveState(CameraState::MoveBackward);
+		break;
+	case VK_LEFT:
+		m_Camera.AddMoveState(CameraState::MoveLeft);
+		break;
+	case VK_RIGHT:
+		m_Camera.AddMoveState(CameraState::MoveRight);
+		break;
+	}
 }
 
 void HelloApp::UpdateCamera(double deltaTime)

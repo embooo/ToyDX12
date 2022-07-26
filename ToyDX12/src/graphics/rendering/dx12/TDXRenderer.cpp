@@ -82,6 +82,8 @@ void ToyDX::Renderer::UpdatePerObjectCBs()
 		{
 			PerObjectData perObjectData;
 			DirectX::XMStoreFloat4x4(&perObjectData.gWorld, DirectX::XMMatrixTranspose(d->GetWorld()));
+			DirectX::XMStoreFloat4x4(&perObjectData.gWorldInvTranspose, DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(nullptr, d->GetWorld())));
+			
 			currObjectCB->CopyData(d->PerObjectCbIndex, &perObjectData, sizeof(PerObjectData));
 			d->NumFramesDirty--;
 		}
@@ -515,16 +517,6 @@ void ToyDX::Renderer::CreateConstantBufferViews()
 
 }
 
-void ToyDX::Renderer::BuildShaderResourceViews()
-{
-	// Build shader resource views
-	int IdxTexture = 0;
-	for (auto& texture : m_Textures)
-	{
-
-	}
-}
-
 void ToyDX::Renderer::LoadMaterials()
 {
 	int CBIndex = 0;
@@ -567,7 +559,8 @@ void ToyDX::Renderer::LoadMaterials()
 			{
 				renderMat->properties.metallicRoughness = material.metallicRoughness;
 
-				renderMat->BaseColorSrvHeapIndex = 0; // 0 : id of fallback texture by default
+				renderMat->BaseColorSrvHeapIndex = m_IndexOf_FirstSrv_DescriptorHeap; // 0 : id of fallback texture by default
+				renderMat->properties.metallicRoughness.MetallicRoughnessSrvHeapIndex = m_IndexOf_FirstSrv_DescriptorHeap;
 
 				if (material.metallicRoughness.hasBaseColorTex)
 				{
@@ -721,6 +714,10 @@ void ToyDX::Renderer::CreatePipelineStateObjects()
 		}
 	);
 
+	m_PipelineStateObjects.at("Wireframe")->SetName(L"Wireframe");
+
+	/////////////////////////////////////////////////////////////////////////
+
 	m_PipelineStateObjects.insert
 	(
 		{ "PBR_MetallicRoughness", DX12RenderingPipeline::CreatePipelineStateObject
@@ -730,7 +727,7 @@ void ToyDX::Renderer::CreatePipelineStateObjects()
 				m_PBR_MetallicRoughness_Pixel->GetByteCode(),
 				*m_AllDrawables[0]->Mesh->GetInputLayout(),
 				rtvFormats,
-				CD3DX12_RASTERIZER_DESC(D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_BACK,
+				CD3DX12_RASTERIZER_DESC(D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_FRONT,
 				FALSE /* FrontCounterClockwise */,
 				D3D12_DEFAULT_DEPTH_BIAS,
 				D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
@@ -744,6 +741,37 @@ void ToyDX::Renderer::CreatePipelineStateObjects()
 			)
 		}
 	);
+
+	m_PipelineStateObjects.at("PBR_MetallicRoughness")->SetName(L"PBR_MetallicRoughness");
+}
+
+void ToyDX::Renderer::HotReloadShaders()
+{
+	DXGI_FORMAT rtvFormats[] = { DXGI_FORMAT_R8G8B8A8_UNORM };
+
+	m_PBR_MetallicRoughness_Pixel->Compile(L"./data/shaders/PBR_MetallicRoughness_Pixel.hlsl", "main", ShaderKind::PIXEL);
+
+	m_PipelineStateObjects.at("PBR_MetallicRoughness") =
+		DX12RenderingPipeline::CreatePipelineStateObject
+		(
+			m_RootSignature.Get(),
+			m_DefaultVertexShader->GetByteCode(),
+			m_PBR_MetallicRoughness_Pixel->GetByteCode(),
+			*m_AllDrawables[0]->Mesh->GetInputLayout(),
+			rtvFormats,
+
+			CD3DX12_RASTERIZER_DESC(D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_FRONT,
+				FALSE /* FrontCounterClockwise */,
+				D3D12_DEFAULT_DEPTH_BIAS,
+				D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
+				D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
+				TRUE /* DepthClipEnable */,
+				TRUE /* MultisampleEnable */,
+				FALSE /* AntialiasedLineEnable */,
+				0 /* ForceSampleCount */,
+				D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF),
+			_countof(rtvFormats)
+		);
 }
 
 void ToyDX::Renderer::LoadShaders()
@@ -767,7 +795,7 @@ void ToyDX::Renderer::LoadMeshes()
 	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/chest/scene.gltf"));
 	//m_Meshes.push_back(std::make_unique<Mesh>("./data/models/930turbo/scene.gltf"));
 
-	std::unique_ptr<Mesh> mesh = std::make_unique<Mesh>("./data/models/metalRoughSpheres/scene.gltf");
+	std::unique_ptr<Mesh> mesh = std::make_unique<Mesh>("./data/models/camera/scene.gltf");
 
 	m_TotalMaterialCount += mesh->Data.materials.size();
 	m_TotalTextureCount  += mesh->Data.textures.size();

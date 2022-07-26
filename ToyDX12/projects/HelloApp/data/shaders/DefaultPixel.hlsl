@@ -4,7 +4,7 @@ struct VSOutput
     float4 PosWS : POSITION;
     float3 NormalOS : NORMAL;
     float3 NormalWS : NORMAL1;
-    float4 Tangent : TANGENT;
+    float3 Tangent : TANGENT;
     float2 TexCoord : TEXCOORD;
 };
 

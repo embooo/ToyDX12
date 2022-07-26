@@ -11,6 +11,7 @@ class DX12RenderingPipeline;
 struct PerObjectData
 {
 	DirectX::XMFLOAT4X4 gWorld = MathUtil::Float4x4Identity();
+	DirectX::XMFLOAT4X4 gWorldInvTranspose = MathUtil::Float4x4Identity();
 };
 
 struct PerPassData
@@ -68,7 +69,7 @@ namespace ToyDX
 		std::vector<UINT8>  CreateFallbackTexture();
 
 		void RenderOpaques(ID3D12GraphicsCommandList* cmdList, std::vector<Drawable*>& drawables);
-
+		void HotReloadShaders();
 		void CreatePipelineStateObjects();
 		void AdvanceToNextFrameResource();
 		FrameResource* GetCurrentFrameResource() { return m_CurrentFrameResource; }
@@ -124,7 +125,6 @@ namespace ToyDX
 		void CreateDescriptorHeap_Cbv_Srv();
 		void CreateStaticSamplers();
 		void CreateConstantBufferViews();
-		void BuildShaderResourceViews();
 		void LoadMaterials();
 		void BuildDrawables();
 		void LoadMeshes();

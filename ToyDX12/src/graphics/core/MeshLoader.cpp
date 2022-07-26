@@ -59,7 +59,7 @@ static void LoadVertices(cgltf_primitive* primitive, MeshData* st_Mesh, const Di
 	std::vector<DirectX::XMFLOAT3> positionsBuffer;
 	std::vector<DirectX::XMFLOAT3> normalsBuffer;
 	std::vector<DirectX::XMFLOAT2> texCoordBuffer;
-	std::vector<DirectX::XMFLOAT4> tangentBuffer;
+	std::vector<DirectX::XMFLOAT3> tangentBuffer;
 	
 	// Build raw buffers containing each attributes components
 	for (int attribIdx = 0; attribIdx < primitive->attributes_count; ++attribIdx)
@@ -107,7 +107,9 @@ static void LoadVertices(cgltf_primitive* primitive, MeshData* st_Mesh, const Di
 			tangentBuffer.resize(attribute->data->count);
 			for (int i = 0; i < tangentBuffer.size(); ++i)
 			{
-				cgltf_accessor_read_float(attribute->data, i, &tangentBuffer[i].x, 4);
+				DirectX::XMFLOAT4 t;
+				cgltf_accessor_read_float(attribute->data, i, &t.x, 4);
+				tangentBuffer[i] = DirectX::XMFLOAT3(t.x * t.w, t.y * t.w, t.z * t.w) ;
 			}
 		}
 		break;
@@ -122,7 +124,7 @@ static void LoadVertices(cgltf_primitive* primitive, MeshData* st_Mesh, const Di
 		{
 			vertex.Pos	     = positionsBuffer[i];
 			vertex.Normal	 = normalsBuffer.empty() ? DirectX::XMFLOAT3{ 0.0, 0.0, 0.0 } : normalsBuffer[i];
-			vertex.Tangent	 = tangentBuffer.empty() ? DirectX::XMFLOAT4{ 0.0, 0.0, 0.0, 0.0 } : tangentBuffer[i];
+			vertex.Tangent	 = tangentBuffer.empty() ? DirectX::XMFLOAT3{ 0.0, 0.0, 0.0 } : tangentBuffer[i];
 			vertex.TexCoord0 = texCoordBuffer.empty() ? DirectX::XMFLOAT2{ 0.0, 0.0 } : texCoordBuffer[i];
 		}
 
@@ -318,7 +320,7 @@ static void LoadPrimitive(cgltf_primitive* primitive, MeshData* st_Mesh, const D
 	////LOG_DEBUG("      Primitive : {0} attributes, {1} indices", primitive->attributes_count, primitive->indices->count);
 
 	Primitive p = {.StartIndexLocation = st_Mesh->Indices.size(), .BaseVertexLocation = st_Mesh->Vertices.size(), .WorldMatrix = currWorldMat };
-
+	p.WorldMatrix = DirectX::XMMatrixScalingFromVector({1,1,1}) * p.WorldMatrix;
 	LoadIndices(primitive, &p, st_Mesh);
 	LoadVertices(primitive, st_Mesh, currWorldMat);
 	LoadMaterial(primitive, &p, st_Mesh);
@@ -343,7 +345,7 @@ void LoadTransform(cgltf_node* p_Node, DirectX::XMMATRIX& currWorldMat)
 	{
 		1,  0,  0,  0,
 		0,  1,  0,  0,
-		0,  0,  1,  0,
+		0,  0,  -1,  0,
 		0,  0,  0,  1
 	};
 
